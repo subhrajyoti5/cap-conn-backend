@@ -3,7 +3,7 @@ const authService = require("./auth.service");
 const { ApiError } = require("../../utils/ApiError");
 
 const register = asyncHandler(async (req, res) => {
-  const { email, password, role } = req.body;
+  const { email, password, role, name } = req.body;
 
   if (!email || !password) {
     throw new ApiError(400, "Email and password are required", "VALIDATION_ERROR");

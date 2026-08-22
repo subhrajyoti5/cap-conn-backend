@@ -11,7 +11,7 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, jwtSecret, { expiresIn: JWT_EXPIRY });
 };
 
-const register = async (email, password, role = "TRAINEE") => {
+const register = async (email, password, role = "TRAINEE", name) => {
   const existingUser = await authRepo.findUserByEmail(email);
   if (existingUser) {
     throw new ApiError(409, "Email already in use", "EMAIL_TAKEN");
@@ -21,6 +21,7 @@ const register = async (email, password, role = "TRAINEE") => {
 
   const user = await authRepo.createUser({
     email,
+    name,
     passwordHash,
     role,
     status: role === "ADMIN" ? "APPROVED" : "PENDING",

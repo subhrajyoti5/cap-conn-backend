@@ -25,8 +25,8 @@ app.set("trust proxy", 1);
 
 const allowedOrigins = [
   "https://capconn.subhr.in",
+  "https://cap-conn-frontend-red.vercel.app",
 
-  "https://cap-conn-frontend.vercel.app",
 ];
 
 app.use(helmet());
