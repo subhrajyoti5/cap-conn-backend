@@ -1,5 +1,5 @@
 const { prisma } = require("../../database/prisma");
-const { clerkClient } = require("../../config/clerk");
+// Clerk client removed – no longer used
 const { ApiError } = require("../../utils/ApiError");
 const { createAuditLog } = require("../../utils/auditLog");
 const { logger } = require("../../utils/logger");
@@ -7,14 +7,9 @@ const notificationsRepo = require("../notifications/notifications.repository");
 const usersRepo = require("./users.repository");
 const { USER_ACTIONS } = require("./users.constants");
 
+// Sync with Clerk removed – placeholder no-op
 const syncClerkMetadata = async (clerkUserId, metadata) => {
-  try {
-    await clerkClient.users.updateUser(clerkUserId, {
-      publicMetadata: metadata,
-    });
-  } catch (err) {
-    logger.error({ err, clerkUserId }, "Failed to sync Clerk metadata");
-  }
+  // No operation; Clerk integration removed
 };
 
 const getPendingUsers = async (query) => {
@@ -40,7 +35,7 @@ const approveUser = async (id, actorId) => {
     return u;
   });
 
-  await syncClerkMetadata(user.clerkUserId, { role: user.role, status: "APPROVED" });
+  // syncClerkMetadata removed
   return updated;
 };
 
@@ -54,7 +49,7 @@ const rejectUser = async (id, reason, actorId) => {
     return u;
   });
 
-  await syncClerkMetadata(user.clerkUserId, { role: user.role, status: "REJECTED" });
+  // syncClerkMetadata removed
   return updated;
 };
 
