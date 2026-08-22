@@ -14,7 +14,7 @@ const register = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid role", "VALIDATION_ERROR");
   }
 
-  const user = await authService.register(email, password, role || "TRAINEE");
+  const user = await authService.register(email, password, role || "TRAINEE", name);
 
   res.status(201).json({
     success: true,

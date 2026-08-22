@@ -43,7 +43,7 @@ app.use("/api/webhooks", express.raw({ type: "application/json" }), captureRawBo
 app.use(express.json());
 app.use(defaultLimiter);
 
-app.use("/api", authRoutes);
+app.use("/", authRoutes);
 app.use("/api", usersRoutes);
 app.use("/api", profilesRoutes);
 app.use("/api", certificationsRoutes);
