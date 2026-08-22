@@ -1,16 +1,10 @@
 const { prisma } = require("../../database/prisma");
-// Clerk client removed – no longer used
 const { ApiError } = require("../../utils/ApiError");
 const { createAuditLog } = require("../../utils/auditLog");
 const { logger } = require("../../utils/logger");
 const notificationsRepo = require("../notifications/notifications.repository");
 const usersRepo = require("./users.repository");
 const { USER_ACTIONS } = require("./users.constants");
-
-// Sync with Clerk removed – placeholder no-op
-const syncClerkMetadata = async (clerkUserId, metadata) => {
-  // No operation; Clerk integration removed
-};
 
 const getPendingUsers = async (query) => {
   return usersRepo.findPendingUsers(query);
@@ -35,7 +29,6 @@ const approveUser = async (id, actorId) => {
     return u;
   });
 
-  // syncClerkMetadata removed
   return updated;
 };
 
@@ -49,7 +42,6 @@ const rejectUser = async (id, reason, actorId) => {
     return u;
   });
 
-  // syncClerkMetadata removed
   return updated;
 };
 
