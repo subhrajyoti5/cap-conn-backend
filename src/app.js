@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const { corsOrigin } = require("./config/env");
 const { defaultLimiter } = require("./middleware/rateLimiter");
 const { errorHandler } = require("./middleware/errorHandler");
 const { captureRawBody } = require("./middleware/rawBody");
@@ -23,10 +22,16 @@ const competenciesRoutes = require("./features/competencies/competencies.routes"
 
 const app = express();
 
+const allowedOrigins = [
+  "https://capconn.subhr.in",
+  "https://capconn.riyosup.indevs.in",
+  "https://cap-conn-frontend.vercel.app",
+];
+
 app.use(helmet());
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: allowedOrigins,
     credentials: true,
   })
 );
