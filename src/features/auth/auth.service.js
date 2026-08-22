@@ -3,6 +3,7 @@ const { clerkWebhookSecret } = require("../../config/env");
 const { clerkClient } = require("../../config/clerk");
 const { ApiError } = require("../../utils/ApiError");
 const authRepo = require("./auth.repository");
+const notificationsService = require("../notifications/notifications.service");
 const { WEBHOOK_EVENTS } = require("./auth.constants");
 
 const verifyWebhook = (headers, payload) => {
@@ -32,7 +33,7 @@ const handleWebhook = async (headers, payload) => {
     }
 
     const metadata = { ...unsafe_metadata, ...public_metadata };
-    const role = metadata?.role === "TRAINER" ? "TRAINER" : "TRAINEE";
+    const role = metadata?.role === "ADMIN" ? "ADMIN" : (metadata?.role === "TRAINER" ? "TRAINER" : "TRAINEE");
 
     const existing = await authRepo.findUserByClerkId(clerkUserId);
     if (existing) return existing;
@@ -41,11 +42,21 @@ const handleWebhook = async (headers, payload) => {
       clerkUserId,
       email,
       role,
-      status: "PENDING",
+      status: role === "ADMIN" ? "APPROVED" : "PENDING",
     });
 
+    // If the user is not admin, they need approval. Notify admins.
+    if (role !== "ADMIN") {
+      await notificationsService.bulkCreate({
+        role: "ADMIN",
+        type: "APPROVAL",
+        title: "New user pending approval",
+        body: `${email} (${role}) signed up and requires approval.`,
+      });
+    }
+
     await clerkClient.users.updateUser(clerkUserId, {
-      publicMetadata: { role, status: "PENDING" },
+      publicMetadata: { role, status: role === "ADMIN" ? "APPROVED" : "PENDING" },
     }).catch(() => null);
 
     return user;
