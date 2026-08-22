@@ -21,6 +21,7 @@ const feedbackRoutes = require("./features/feedback/feedback.routes");
 const competenciesRoutes = require("./features/competencies/competencies.routes");
 
 const app = express();
+app.set("trust proxy", 1);
 
 const allowedOrigins = [
   "https://capconn.subhr.in",

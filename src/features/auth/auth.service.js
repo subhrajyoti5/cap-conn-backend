@@ -1,80 +1,73 @@
-const { Webhook } = require("svix");
-const { clerkWebhookSecret } = require("../../config/env");
-const { clerkClient } = require("../../config/clerk");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const { jwtSecret } = require("../../config/env");
 const { ApiError } = require("../../utils/ApiError");
 const authRepo = require("./auth.repository");
 const notificationsService = require("../notifications/notifications.service");
-const { WEBHOOK_EVENTS } = require("./auth.constants");
 
-const verifyWebhook = (headers, payload) => {
-  const wh = new Webhook(clerkWebhookSecret);
-  return wh.verify(payload, {
-    "svix-id": headers["svix-id"],
-    "svix-timestamp": headers["svix-timestamp"],
-    "svix-signature": headers["svix-signature"],
+const JWT_EXPIRY = "7d";
+
+const generateToken = (userId) => {
+  return jwt.sign({ userId }, jwtSecret, { expiresIn: JWT_EXPIRY });
+};
+
+const register = async (email, password, role = "TRAINEE") => {
+  const existingUser = await authRepo.findUserByEmail(email);
+  if (existingUser) {
+    throw new ApiError(409, "Email already in use", "EMAIL_TAKEN");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  const user = await authRepo.createUser({
+    email,
+    passwordHash,
+    role,
+    status: role === "ADMIN" ? "APPROVED" : "PENDING",
   });
-};
 
-const handleWebhook = async (headers, payload) => {
-  const event = verifyWebhook(headers, payload);
-
-  if (event.type === WEBHOOK_EVENTS.USER_CREATED) {
-    const {
-      id: clerkUserId,
-      email_addresses,
-      unsafe_metadata,
-      public_metadata,
-    } = event.data;
-
-    const email = email_addresses?.find((e) => e.id === event.data.primary_email_address_id)?.email_address || email_addresses?.[0]?.email_address;
-
-    if (!email) {
-      throw new ApiError(400, "Email address missing", "VALIDATION_ERROR");
-    }
-
-    const metadata = { ...unsafe_metadata, ...public_metadata };
-    const role = metadata?.role === "ADMIN" ? "ADMIN" : (metadata?.role === "TRAINER" ? "TRAINER" : "TRAINEE");
-
-    const existing = await authRepo.findUserByClerkId(clerkUserId);
-    if (existing) return existing;
-
-    const user = await authRepo.createUser({
-      clerkUserId,
-      email,
-      role,
-      status: role === "ADMIN" ? "APPROVED" : "PENDING",
+  // If the user is not admin, they need approval. Notify admins.
+  if (role !== "ADMIN") {
+    await notificationsService.bulkCreate({
+      role: "ADMIN",
+      type: "APPROVAL",
+      title: "New user pending approval",
+      body: `${email} (${role}) signed up and requires approval.`,
     });
-
-    // If the user is not admin, they need approval. Notify admins.
-    if (role !== "ADMIN") {
-      await notificationsService.bulkCreate({
-        role: "ADMIN",
-        type: "APPROVAL",
-        title: "New user pending approval",
-        body: `${email} (${role}) signed up and requires approval.`,
-      });
-    }
-
-    await clerkClient.users.updateUser(clerkUserId, {
-      publicMetadata: { role, status: role === "ADMIN" ? "APPROVED" : "PENDING" },
-    }).catch(() => null);
-
-    return user;
   }
 
-  if (event.type === WEBHOOK_EVENTS.USER_DELETED) {
-    const { id: clerkUserId } = event.data;
-    return authRepo.deleteUserByClerkId(clerkUserId).catch(() => null);
-  }
-
-  return null;
+  return user;
 };
 
-const getMe = async (clerkUserId) => {
-  return authRepo.findUserByClerkId(clerkUserId);
+const login = async (email, password) => {
+  const user = await authRepo.findUserByEmail(email);
+  if (!user) {
+    throw new ApiError(401, "Invalid email or password", "INVALID_CREDENTIALS");
+  }
+
+  if (user.status !== "APPROVED") {
+    throw new ApiError(403, "Account not approved yet", "ACCOUNT_NOT_APPROVED");
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid email or password", "INVALID_CREDENTIALS");
+  }
+
+  const token = generateToken(user.id);
+  return { token, user };
+};
+
+const getMe = async (userId) => {
+  const user = await authRepo.findUserById(userId);
+  if (!user) {
+    throw new ApiError(404, "User not found", "USER_NOT_FOUND");
+  }
+  return user;
 };
 
 module.exports = {
-  handleWebhook,
+  register,
+  login,
   getMe,
 };
