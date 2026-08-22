@@ -1,0 +1,76 @@
+const express = require("express");
+const { authenticate } = require("../../middleware/authenticate");
+const { requireUser } = require("../../middleware/requireUser");
+const { requireApprovedUser } = require("../../middleware/requireApprovedUser");
+const { requireRole } = require("../../middleware/requireRole");
+const { validate } = require("../../middleware/validate");
+const assessmentsController = require("./assessments.controller");
+const {
+  createAssessmentSchema,
+  updateAssessmentSchema,
+  submitSchema,
+  paramsSchema,
+  listSchema,
+} = require("./assessments.validation");
+
+const router = express.Router();
+
+router.use(authenticate, requireUser, requireApprovedUser);
+
+router.post(
+  "/assessments",
+  requireRole("TRAINER", "ADMIN"),
+  validate(createAssessmentSchema),
+  assessmentsController.createAssessment
+);
+
+router.get("/assessments/:id", validate(paramsSchema), assessmentsController.getAssessment);
+
+router.patch(
+  "/assessments/:id",
+  requireRole("TRAINER", "ADMIN"),
+  validate(updateAssessmentSchema),
+  assessmentsController.updateAssessment
+);
+
+router.patch(
+  "/assessments/:id/publish",
+  requireRole("TRAINER", "ADMIN"),
+  validate(paramsSchema),
+  assessmentsController.publishAssessment
+);
+
+router.get(
+  "/courses/:id/assessments",
+  validate(paramsSchema),
+  assessmentsController.listCourseAssessments
+);
+
+router.post(
+  "/assessments/:id/start",
+  requireRole("TRAINEE"),
+  validate(paramsSchema),
+  assessmentsController.startAssessment
+);
+
+router.post(
+  "/assessments/:id/submit",
+  requireRole("TRAINEE"),
+  validate(submitSchema),
+  assessmentsController.submitAssessment
+);
+
+router.get(
+  "/assessments/:id/result",
+  validate(paramsSchema),
+  assessmentsController.getResult
+);
+
+router.get(
+  "/assessments/:id/submissions",
+  requireRole("TRAINER", "ADMIN"),
+  validate(listSchema),
+  assessmentsController.listSubmissions
+);
+
+module.exports = router;

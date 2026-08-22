@@ -1,0 +1,8 @@
+module.exports = {
+  USER_ACTIONS: {
+    APPROVE: "USER_APPROVED",
+    REJECT: "USER_REJECTED",
+    SUSPEND: "USER_SUSPENDED",
+    ROLE_CHANGE: "USER_ROLE_CHANGED",
+  },
+};
