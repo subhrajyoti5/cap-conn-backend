@@ -27,14 +27,14 @@ const register = async (email, password, role = "TRAINEE", name) => {
     status: role === "ADMIN" ? "APPROVED" : "PENDING",
   });
 
-  // If the user is not admin, they need approval. Notify admins.
+  // Notify admins — non-blocking, never fail registration if this errors
   if (role !== "ADMIN") {
-    await notificationsService.bulkCreate({
+    notificationsService.bulkCreate({
       role: "ADMIN",
       type: "APPROVAL",
       title: "New user pending approval",
       body: `${email} (${role}) signed up and requires approval.`,
-    });
+    }).catch(() => {}); // swallow errors silently
   }
 
   return user;

@@ -26,7 +26,7 @@ const bulkCreate = async (data) => {
   }
 
   if (userIds.length === 0) {
-    throw new ApiError(400, "No recipients", "VALIDATION_ERROR");
+    return null; // no recipients, skip silently
   }
 
   const notifications = userIds.map((userId) => ({
