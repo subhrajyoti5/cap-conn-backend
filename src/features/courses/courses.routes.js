@@ -20,7 +20,7 @@ router.use(authenticate, requireUser, requireApprovedUser);
 router.get("/courses", validate(listCoursesSchema), coursesController.listCourses);
 router.post(
   "/courses",
-  requireRole("TRAINER", "ADMIN"),
+  requireRole("TRAINER"),
   validate(courseSchema),
   coursesController.createCourse
 );

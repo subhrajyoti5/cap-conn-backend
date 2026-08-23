@@ -1,7 +1,17 @@
 const { prisma } = require("../../database/prisma");
 
+const USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+};
+
 const findUserById = async (id) => {
-  return prisma.user.findUnique({ where: { id } });
+  return prisma.user.findUnique({ where: { id }, select: USER_SELECT });
 };
 
 const findPendingUsers = async ({ page, limit }) => {
@@ -9,6 +19,7 @@ const findPendingUsers = async ({ page, limit }) => {
   const [data, total] = await Promise.all([
     prisma.user.findMany({
       where: { status: "PENDING" },
+      select: USER_SELECT,
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,

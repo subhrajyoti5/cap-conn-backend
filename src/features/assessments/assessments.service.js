@@ -53,7 +53,7 @@ const getAssessment = async (id, user) => {
 const updateAssessment = async (id, data, user) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
+  if (assessment.trainerId !== user.id) {
     throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
   }
   if (assessment.status !== "DRAFT") {

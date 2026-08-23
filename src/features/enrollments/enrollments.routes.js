@@ -32,4 +32,11 @@ router.get(
   enrollmentsController.listMyEnrollments
 );
 
+router.get(
+  "/courses/:id/enrollments",
+  requireRole("TRAINER", "ADMIN"),
+  validate(paramsSchema),
+  enrollmentsController.listCourseEnrollments
+);
+
 module.exports = router;

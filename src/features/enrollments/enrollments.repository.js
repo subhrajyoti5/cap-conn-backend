@@ -36,9 +36,22 @@ const findByTrainee = async (traineeId, { status, page, limit }) => {
   return { data, meta: { page, limit, total } };
 };
 
+const findByCourse = async (courseId) => {
+  return prisma.enrollment.findMany({
+    where: { courseId },
+    include: {
+      trainee: {
+        select: { id: true, name: true, email: true, role: true, status: true },
+      },
+    },
+    orderBy: { enrolledAt: "desc" },
+  });
+};
+
 module.exports = {
   findByCourseAndTrainee,
   create,
   updateStatus,
   findByTrainee,
+  findByCourse,
 };

@@ -25,8 +25,17 @@ const listMyEnrollments = asyncHandler(async (req, res) => {
   res.json({ success: true, ...result });
 });
 
+const listCourseEnrollments = asyncHandler(async (req, res) => {
+  const data = await enrollmentsService.listCourseEnrollments(
+    req.params.id,
+    req.user
+  );
+  res.json({ success: true, data });
+});
+
 module.exports = {
   enroll,
   drop,
   listMyEnrollments,
+  listCourseEnrollments,
 };
