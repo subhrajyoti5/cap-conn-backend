@@ -66,6 +66,10 @@ const getResource = async (id, user) => {
     throw new ApiError(403, "Not enrolled or owner", "INSUFFICIENT_ROLE");
   }
 
+  if (resource.storageKey.startsWith("http://") || resource.storageKey.startsWith("https://")) {
+    return { resource, downloadUrl: resource.storageKey };
+  }
+
   const command = new GetObjectCommand({
     Bucket: r2Bucket,
     Key: resource.storageKey,
