@@ -18,7 +18,9 @@ const register = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: "Registration successful. Please wait for admin approval.",
+    message: user.status === "APPROVED"
+      ? "Registration successful."
+      : "Registration successful. Please wait for admin approval.",
     data: { id: user.id, email: user.email, role: user.role, status: user.status },
   });
 });
