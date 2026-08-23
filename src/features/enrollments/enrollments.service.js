@@ -34,8 +34,18 @@ const listMyEnrollments = async (traineeId, query) => {
   return enrollmentsRepo.findByTrainee(traineeId, query);
 };
 
+const listCourseEnrollments = async (courseId, user) => {
+  const course = await coursesRepo.findById(courseId);
+  if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
+  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
+    throw new ApiError(403, "Not course owner", "NOT_OWNER");
+  }
+  return enrollmentsRepo.findByCourse(courseId);
+};
+
 module.exports = {
   enrollInCourse,
   dropCourse,
   listMyEnrollments,
+  listCourseEnrollments,
 };

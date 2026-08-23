@@ -3,7 +3,24 @@ const { prisma } = require("../../database/prisma");
 const findById = async (id) => {
   return prisma.course.findUnique({
     where: { id },
-    include: { trainer: true, subject: true },
+    include: {
+      trainer: { select: { id: true, name: true, email: true, role: true } },
+      subject: true,
+      resources: true,
+      assessments: {
+        include: {
+          questions: {
+            include: { options: true },
+          },
+        },
+      },
+      enrollments: true,
+      feedbacks: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
   });
 };
 

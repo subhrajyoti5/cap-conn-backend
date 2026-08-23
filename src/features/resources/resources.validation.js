@@ -15,8 +15,8 @@ const createResourceSchema = z.object({
     title: z.string().min(1),
     type: z.enum(["LECTURE", "PRESENTATION", "STUDY_MATERIAL", "DOCUMENT", "OTHER"]),
     storageKey: z.string().min(1),
-    sizeBytes: z.coerce.number().int().positive(),
-    mimeType: z.string().min(1),
+    sizeBytes: z.coerce.number().int().positive().optional().nullable(),
+    mimeType: z.string().min(1).optional().nullable(),
   }),
 });
 

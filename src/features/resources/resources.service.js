@@ -16,7 +16,7 @@ const generateStorageKey = (courseId, fileName) => {
 const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) => {
   const course = await coursesRepo.findById(courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
+  if (course.trainerId !== user.id) {
     throw new ApiError(403, "Not course owner", "NOT_OWNER");
   }
 
@@ -44,7 +44,7 @@ const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) =
 const createResource = async (data, user) => {
   const course = await coursesRepo.findById(data.courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
+  if (course.trainerId !== user.id) {
     throw new ApiError(403, "Not course owner", "NOT_OWNER");
   }
   return resourcesRepo.create(data);
@@ -64,6 +64,10 @@ const getResource = async (id, user) => {
   const hasAccess = await canAccessResource(resource, user);
   if (!hasAccess) {
     throw new ApiError(403, "Not enrolled or owner", "INSUFFICIENT_ROLE");
+  }
+
+  if (resource.storageKey.startsWith("http://") || resource.storageKey.startsWith("https://")) {
+    return { resource, downloadUrl: resource.storageKey };
   }
 
   const command = new GetObjectCommand({
@@ -99,12 +103,16 @@ const deleteResource = async (id, user) => {
     throw new ApiError(403, "Not resource owner", "NOT_OWNER");
   }
 
-  await r2Client.send(
-    new DeleteObjectCommand({
-      Bucket: r2Bucket,
-      Key: resource.storageKey,
-    })
-  );
+  // Only attempt R2 deletion for keys that are actually stored in R2
+  const isExternalUrl = resource.storageKey.startsWith("http://") || resource.storageKey.startsWith("https://");
+  if (!isExternalUrl) {
+    await r2Client.send(
+      new DeleteObjectCommand({
+        Bucket: r2Bucket,
+        Key: resource.storageKey,
+      })
+    );
+  }
 
   await resourcesRepo.remove(id);
   return { deleted: true };
