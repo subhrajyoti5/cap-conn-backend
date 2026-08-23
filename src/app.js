@@ -44,20 +44,20 @@ app.use(express.json());
 app.use(defaultLimiter);
 
 app.use("/", authRoutes);
-app.use("/api", usersRoutes);
-app.use("/api", profilesRoutes);
-app.use("/api", certificationsRoutes);
-app.use("/api", subjectsRoutes);
-app.use("/api", coursesRoutes);
-app.use("/api", enrollmentsRoutes);
-app.use("/api", resourcesRoutes);
-app.use("/api", assessmentsRoutes);
-app.use("/api", dashboardRoutes);
-app.use("/api", notificationsRoutes);
-app.use("/api", announcementsRoutes);
-app.use("/api", achievementsRoutes);
-app.use("/api", feedbackRoutes);
-app.use("/api", competenciesRoutes);
+app.use("/", usersRoutes);
+app.use("/", profilesRoutes);
+app.use("/", certificationsRoutes);
+app.use("/", subjectsRoutes);
+app.use("/", coursesRoutes);
+app.use("/", enrollmentsRoutes);
+app.use("/", resourcesRoutes);
+app.use("/", assessmentsRoutes);
+app.use("/", dashboardRoutes);
+app.use("/", notificationsRoutes);
+app.use("/", announcementsRoutes);
+app.use("/", achievementsRoutes);
+app.use("/", feedbackRoutes);
+app.use("/", competenciesRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ success: true, data: { status: "ok" } });
