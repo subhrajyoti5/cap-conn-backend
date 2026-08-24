@@ -24,8 +24,19 @@ const bulkCreateSchema = z.object({
   }),
 });
 
+const createNotificationSchema = z.object({
+  body: z.object({
+    userIds: z.array(z.string().uuid()).optional(),
+    toAdmins: z.boolean().optional(),
+    title: z.string().min(1),
+    body: z.string().min(1),
+    type: z.enum(["APPROVAL", "ASSESSMENT", "ANNOUNCEMENT", "COURSE", "SYSTEM"]).default("SYSTEM"),
+  }),
+});
+
 module.exports = {
   listNotificationsSchema,
   paramsSchema,
   bulkCreateSchema,
+  createNotificationSchema,
 };

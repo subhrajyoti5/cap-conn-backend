@@ -22,8 +22,14 @@ const bulkCreate = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: result });
 });
 
+const createNotification = asyncHandler(async (req, res) => {
+  const result = await notificationsService.createNotification(req.user, req.body);
+  res.status(201).json({ success: true, data: result });
+});
+
 module.exports = {
   listNotifications,
   markRead,
   bulkCreate,
+  createNotification,
 };

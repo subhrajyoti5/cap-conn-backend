@@ -85,6 +85,8 @@ const getAdminDashboard = async () => {
     activeEnrollments,
     publishedAssessments,
     certifications,
+    recentPendingUsers,
+    recentCourses,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { status: "PENDING" } }),
@@ -94,6 +96,20 @@ const getAdminDashboard = async () => {
     prisma.enrollment.count({ where: { status: "ACTIVE" } }),
     prisma.assessment.count({ where: { status: "PUBLISHED" } }),
     prisma.certification.count(),
+    prisma.user.findMany({
+      where: { status: "PENDING" },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.course.findMany({
+      include: {
+        trainer: { select: { name: true } },
+        subject: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
   ]);
 
   return {
@@ -105,6 +121,8 @@ const getAdminDashboard = async () => {
     activeEnrollments,
     publishedAssessments,
     certifications,
+    recentPendingUsers,
+    recentCourses,
   };
 };
 
