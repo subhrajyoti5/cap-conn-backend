@@ -83,8 +83,13 @@ const getUserById = async (id, requester) => {
   return user;
 };
 
+const getAllUsers = async (query) => {
+  return usersRepo.findAllUsers(query);
+};
+
 module.exports = {
   getPendingUsers,
+  getAllUsers,
   approveUser,
   rejectUser,
   suspendUser,

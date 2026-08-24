@@ -39,8 +39,14 @@ const getUser = asyncHandler(async (req, res) => {
   res.json({ success: true, data: user });
 });
 
+const listAllUsers = asyncHandler(async (req, res) => {
+  const result = await usersService.getAllUsers(req.validated.query);
+  res.json({ success: true, ...result });
+});
+
 module.exports = {
   listPendingUsers,
+  listAllUsers,
   approveUser,
   rejectUser,
   suspendUser,

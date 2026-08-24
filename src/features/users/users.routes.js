@@ -29,6 +29,13 @@ router.get(
   usersController.listPendingUsers
 );
 
+router.get(
+  "/admin/users",
+  requireRole("ADMIN"),
+  validate(listSchema),
+  usersController.listAllUsers
+);
+
 router.patch(
   "/admin/users/:id/approve",
   requireRole("ADMIN"),
