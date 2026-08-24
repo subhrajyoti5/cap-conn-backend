@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const env = require("./config/env");
 const { defaultLimiter } = require("./middleware/rateLimiter");
 const { errorHandler } = require("./middleware/errorHandler");
 const { captureRawBody } = require("./middleware/rawBody");
@@ -26,7 +27,7 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "https://capconn.subhr.in",
   "https://cap-conn-frontend-red.vercel.app",
-
+  env.corsOrigin,
 ];
 
 app.use(helmet());

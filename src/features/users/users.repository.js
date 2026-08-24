@@ -45,9 +45,24 @@ const updateUserRole = async (id, role, tx) => {
   });
 };
 
+const findAllUsers = async ({ page, limit }) => {
+  const skip = (page - 1) * limit;
+  const [data, total] = await Promise.all([
+    prisma.user.findMany({
+      select: USER_SELECT,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.user.count(),
+  ]);
+  return { data, meta: { page, limit, total } };
+};
+
 module.exports = {
   findUserById,
   findPendingUsers,
+  findAllUsers,
   updateUserStatus,
   updateUserRole,
 };
