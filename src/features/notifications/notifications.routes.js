@@ -9,6 +9,7 @@ const {
   listNotificationsSchema,
   paramsSchema,
   bulkCreateSchema,
+  createNotificationSchema,
 } = require("./notifications.validation");
 
 const router = express.Router();
@@ -20,6 +21,13 @@ router.get(
   requireApprovedUser,
   validate(listNotificationsSchema),
   notificationsController.listNotifications
+);
+
+router.post(
+  "/notifications",
+  requireApprovedUser,
+  validate(createNotificationSchema),
+  notificationsController.createNotification
 );
 
 router.patch(
