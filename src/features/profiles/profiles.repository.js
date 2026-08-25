@@ -53,9 +53,10 @@ const deleteChild = async (model, id, profileIdField, profileId, tx) => {
 };
 
 const findChildren = async (model, profileId, profileIdField) => {
-  return prisma[model].findMany({
+  const modelDelegate = prisma[model] || prisma[model.charAt(0).toLowerCase() + model.slice(1)];
+  return modelDelegate.findMany({
     where: { [profileIdField]: profileId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { id: "desc" },
   });
 };
 
