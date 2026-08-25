@@ -15,6 +15,10 @@ const validate = (schema) => {
       throw new ApiError(400, message, "VALIDATION_ERROR");
     }
 
+    if (result.data.body !== undefined) req.body = result.data.body;
+    if (result.data.query !== undefined) req.query = result.data.query;
+    if (result.data.params !== undefined) req.params = result.data.params;
+
     req.validated = result.data;
     next();
   };

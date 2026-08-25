@@ -37,6 +37,12 @@ const idSchema = z.object({
   }),
 });
 
+const userIdSchema = z.object({
+  params: z.object({
+    userId: z.string().uuid(),
+  }),
+});
+
 const competencySchema = z.object({
   body: z.object({
     competencyId: z.string().uuid(),
@@ -49,5 +55,6 @@ module.exports = {
   experienceSchema,
   nameSchema,
   idSchema,
+  userIdSchema,
   competencySchema,
 };
