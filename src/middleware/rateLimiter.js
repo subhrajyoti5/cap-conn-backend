@@ -3,7 +3,7 @@ const { rateLimitWindowMs, rateLimitMax } = require("../config/env");
 
 const defaultLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
-  max: rateLimitMax,
+  max: process.env.NODE_ENV === "development" ? 10000 : rateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -17,7 +17,7 @@ const defaultLimiter = rateLimit({
 
 const strictLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
-  max: 20,
+  max: process.env.NODE_ENV === "development" ? 5000 : 20,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

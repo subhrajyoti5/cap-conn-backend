@@ -14,7 +14,11 @@ const findById = async (id) => {
           },
         },
       },
-      enrollments: true,
+      enrollments: {
+        include: {
+          trainee: { select: { id: true, name: true, email: true, role: true } },
+        },
+      },
       feedbacks: {
         include: {
           user: { select: { id: true, name: true, email: true } },
