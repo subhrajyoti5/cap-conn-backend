@@ -91,6 +91,14 @@ const removeTrainerCompetency = async (user, id) => {
   return { deleted: true };
 };
 
+const getTrainerProfilePublic = async (userId) => {
+  const profile = await profilesRepo.findTrainerProfilePublic(userId);
+  if (!profile) {
+    throw new ApiError(404, "Trainer profile not found", "NOT_FOUND");
+  }
+  return profile;
+};
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
@@ -100,4 +108,5 @@ module.exports = {
   addInterest,
   addTrainerCompetency,
   removeTrainerCompetency,
+  getTrainerProfilePublic,
 };

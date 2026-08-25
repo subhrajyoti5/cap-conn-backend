@@ -86,6 +86,11 @@ const removeMyCompetency = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { deleted: true } });
 });
 
+const getTrainerProfilePublic = asyncHandler(async (req, res) => {
+  const profile = await profilesService.getTrainerProfilePublic(req.params.userId);
+  res.json({ success: true, data: profile });
+});
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
@@ -104,4 +109,5 @@ module.exports = {
   listMyCompetencies,
   addMyCompetency,
   removeMyCompetency,
+  getTrainerProfilePublic,
 };

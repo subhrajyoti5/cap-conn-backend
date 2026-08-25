@@ -11,6 +11,7 @@ const {
   experienceSchema,
   nameSchema,
   idSchema,
+  userIdSchema,
   competencySchema,
 } = require("./profiles.validation");
 
@@ -78,6 +79,12 @@ router.delete(
   requireRole("TRAINER"),
   validate(idSchema),
   profilesController.removeMyCompetency
+);
+
+router.get(
+  "/profiles/trainers/:userId",
+  validate(userIdSchema),
+  profilesController.getTrainerProfilePublic
 );
 
 module.exports = router;
