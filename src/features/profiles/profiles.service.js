@@ -16,12 +16,15 @@ const updateMyProfile = async (user, data) => {
 };
 
 const ensureProfile = async (user) => {
-  const profile =
+  let profile =
     user.role === "TRAINER"
       ? await profilesRepo.findTrainerProfile(user.id)
       : await profilesRepo.findTraineeProfile(user.id);
   if (!profile) {
-    throw new ApiError(404, "Profile not found", "NOT_FOUND");
+    profile =
+      user.role === "TRAINER"
+        ? await profilesRepo.upsertTrainerProfile(user.id, { fullName: user.name || "Trainer" })
+        : await profilesRepo.upsertTraineeProfile(user.id, { fullName: user.name || "Trainee" });
   }
   return profile;
 };
