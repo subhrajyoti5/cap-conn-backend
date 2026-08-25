@@ -16,13 +16,13 @@ const generateStorageKey = (courseId, fileName) => {
 const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) => {
   const course = await coursesRepo.findById(courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (course.trainerId !== user.id) {
+  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
     throw new ApiError(403, "Not course owner", "NOT_OWNER");
   }
 
   const type = mimeType.startsWith("video/") ? "LECTURE" : "DOCUMENT";
-  const maxSize = MAX_SIZE_BYTES[type];
-  if (sizeBytes > maxSize) {
+  const maxSize = MAX_SIZE_BYTES[type] || (500 * 1024 * 1024);
+  if (sizeBytes && sizeBytes > maxSize) {
     throw new ApiError(400, `File exceeds max size of ${maxSize} bytes`, "VALIDATION_ERROR");
   }
 
@@ -31,7 +31,6 @@ const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) =
     Bucket: r2Bucket,
     Key: storageKey,
     ContentType: mimeType,
-    ContentLength: sizeBytes,
   });
 
   const uploadUrl = await getSignedUrl(r2Client, command, {
@@ -44,7 +43,7 @@ const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) =
 const createResource = async (data, user) => {
   const course = await coursesRepo.findById(data.courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (course.trainerId !== user.id) {
+  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
     throw new ApiError(403, "Not course owner", "NOT_OWNER");
   }
   return resourcesRepo.create(data);
