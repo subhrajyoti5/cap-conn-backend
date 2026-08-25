@@ -1,7 +1,30 @@
 const { prisma } = require("../../database/prisma");
+const { GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { r2Client } = require("../../config/r2");
+const { r2Bucket, r2PublicBaseUrl } = require("../../config/env");
+
+const signResourceUrl = async (resource) => {
+  if (!resource || !resource.storageKey) return resource;
+  if (resource.storageKey.startsWith("http://") || resource.storageKey.startsWith("https://")) {
+    return { ...resource, downloadUrl: resource.storageKey };
+  }
+  try {
+    const command = new GetObjectCommand({
+      Bucket: r2Bucket,
+      Key: resource.storageKey,
+    });
+    const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 });
+    return { ...resource, downloadUrl: signedUrl };
+  } catch (err) {
+    console.error("Failed to sign URL for resource:", resource.id, err);
+    const fallbackUrl = r2PublicBaseUrl ? `${r2PublicBaseUrl}/${resource.storageKey}` : resource.storageKey;
+    return { ...resource, downloadUrl: fallbackUrl };
+  }
+};
 
 const findById = async (id) => {
-  return prisma.course.findUnique({
+  const course = await prisma.course.findUnique({
     where: { id },
     include: {
       trainer: { select: { id: true, name: true, email: true, role: true } },
@@ -26,6 +49,12 @@ const findById = async (id) => {
       },
     },
   });
+
+  if (course && course.resources) {
+    course.resources = await Promise.all(course.resources.map(signResourceUrl));
+  }
+
+  return course;
 };
 
 const findCourses = async ({ subjectId, trainerId, status, search, page, limit }) => {
