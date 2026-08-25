@@ -99,6 +99,14 @@ const getTrainerProfilePublic = async (userId) => {
   return profile;
 };
 
+const getTraineeProfilePublic = async (userId) => {
+  const profile = await profilesRepo.findTraineeProfilePublic(userId);
+  if (!profile) {
+    throw new ApiError(404, "Trainee profile not found", "NOT_FOUND");
+  }
+  return profile;
+};
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
@@ -109,4 +117,5 @@ module.exports = {
   addTrainerCompetency,
   removeTrainerCompetency,
   getTrainerProfilePublic,
+  getTraineeProfilePublic,
 };

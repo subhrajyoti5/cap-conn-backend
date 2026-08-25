@@ -18,6 +18,11 @@ const router = express.Router();
 router.use(authenticate, requireUser, requireApprovedUser);
 
 router.get("/courses", validate(listCoursesSchema), coursesController.listCourses);
+router.get(
+  "/courses/invitations/pending",
+  requireRole("TRAINER"),
+  coursesController.listPendingInvitations
+);
 router.post(
   "/courses",
   requireRole("TRAINER"),
@@ -47,6 +52,28 @@ router.patch(
   validate(paramsSchema),
   requireOwnership(loadCourse),
   coursesController.publishCourse
+);
+
+router.post(
+  "/courses/:id/invite-trainer",
+  requireRole("TRAINER", "ADMIN"),
+  validate(paramsSchema),
+  requireOwnership(loadCourse),
+  coursesController.inviteTrainer
+);
+
+router.post(
+  "/courses/:id/accept-invitation",
+  requireRole("TRAINER"),
+  validate(paramsSchema),
+  coursesController.acceptInvitation
+);
+
+router.post(
+  "/courses/:id/reject-invitation",
+  requireRole("TRAINER"),
+  validate(paramsSchema),
+  coursesController.rejectInvitation
 );
 
 module.exports = router;

@@ -29,9 +29,11 @@ enum CourseStatus {
 }
 
 enum EnrollmentStatus {
+  PENDING
   ACTIVE
   COMPLETED
   DROPPED
+  REJECTED
 }
 
 enum ResourceType {
@@ -89,6 +91,7 @@ model User {
   coursesCreated Course[]           @relation("CourseTrainer")
   assessments    Assessment[]       @relation("AssessmentTrainer")
   auditLogs      AuditLog[]
+  courseTrainers CourseTrainer[]
 
   @@map("users")
 }
@@ -238,6 +241,8 @@ model Course {
   resources   LearningResource[]
   assessments Assessment[]
   feedbacks   Feedback[]
+  trainers    CourseTrainer[]
+  invitations CourseInvitation[]
 
   @@map("courses")
 }
@@ -408,4 +413,30 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+model CourseTrainer {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  trainerId String
+  trainer   User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  role      String   @default("SECONDARY") // MAIN, SECONDARY, ASSISTANT
+  createdAt DateTime @default(now())
+
+  @@unique([courseId, trainerId])
+  @@map("course_trainers")
+}
+
+model CourseInvitation {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  email     String
+  role      Role     @default(TRAINER)
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt DateTime @default(now())
+
+  @@unique([courseId, email])
+  @@map("course_invitations")
 }

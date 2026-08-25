@@ -77,13 +77,47 @@ const deleteTrainerCompetency = async (id, trainerProfileId, tx) => {
 };
 
 const findTrainerProfilePublic = async (userId) => {
-  const profile = await findTrainerProfile(userId);
-  if (!profile) return null;
+  let profile = await findTrainerProfile(userId);
+  if (!profile) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== "TRAINER") return null;
+    profile = {
+      id: "temp-profile-id",
+      userId: user.id,
+      fullName: user.name || "Trainer",
+      phone: "",
+      bio: "",
+      qualifications: [],
+      workExperiences: [],
+      skills: [],
+      trainerCompetencies: [],
+    };
+  }
   const courses = await prisma.course.findMany({
     where: { trainerId: userId, status: "PUBLISHED" },
     include: { subject: true, enrollments: true },
   });
   return { ...profile, courses };
+};
+
+const findTraineeProfilePublic = async (userId) => {
+  let profile = await findTraineeProfile(userId);
+  if (!profile) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== "TRAINEE") return null;
+    profile = {
+      id: "temp-profile-id",
+      userId: user.id,
+      fullName: user.name || "Trainee",
+      phone: "",
+      bio: "",
+      qualifications: [],
+      workExperiences: [],
+      skills: [],
+      interests: [],
+    };
+  }
+  return profile;
 };
 
 module.exports = {
@@ -97,4 +131,5 @@ module.exports = {
   createTrainerCompetency,
   deleteTrainerCompetency,
   findTrainerProfilePublic,
+  findTraineeProfilePublic,
 };

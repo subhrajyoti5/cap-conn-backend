@@ -47,6 +47,12 @@ const findById = async (id) => {
           user: { select: { id: true, name: true, email: true } },
         },
       },
+      trainers: {
+        include: {
+          trainer: { select: { id: true, name: true, email: true } }
+        }
+      },
+      invitations: true,
     },
   });
 
@@ -73,7 +79,7 @@ const findCourses = async ({ subjectId, trainerId, status, search, page, limit }
   const [data, total] = await Promise.all([
     prisma.course.findMany({
       where,
-      include: { trainer: true, subject: true },
+      include: { trainer: true, subject: true, trainers: true },
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
