@@ -33,9 +33,41 @@ const listCourseEnrollments = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+const approveEnrollment = asyncHandler(async (req, res) => {
+  const data = await enrollmentsService.approveEnrollment(
+    req.params.id,
+    req.params.traineeId,
+    req.user.id
+  );
+  res.json({ success: true, data });
+});
+
+const rejectEnrollment = asyncHandler(async (req, res) => {
+  const data = await enrollmentsService.rejectEnrollment(
+    req.params.id,
+    req.params.traineeId,
+    req.user.id,
+    req.body.message
+  );
+  res.json({ success: true, data });
+});
+
+const removeTrainee = asyncHandler(async (req, res) => {
+  const data = await enrollmentsService.removeTrainee(
+    req.params.id,
+    req.body.traineeId,
+    req.user.id,
+    req.body.reason
+  );
+  res.json({ success: true, data });
+});
+
 module.exports = {
   enroll,
   drop,
   listMyEnrollments,
   listCourseEnrollments,
+  approveEnrollment,
+  rejectEnrollment,
+  removeTrainee,
 };

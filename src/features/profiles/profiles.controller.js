@@ -91,6 +91,11 @@ const getTrainerProfilePublic = asyncHandler(async (req, res) => {
   res.json({ success: true, data: profile });
 });
 
+const getTraineeProfilePublic = asyncHandler(async (req, res) => {
+  const profile = await profilesService.getTraineeProfilePublic(req.params.userId);
+  res.json({ success: true, data: profile });
+});
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
@@ -110,4 +115,5 @@ module.exports = {
   addMyCompetency,
   removeMyCompetency,
   getTrainerProfilePublic,
+  getTraineeProfilePublic,
 };

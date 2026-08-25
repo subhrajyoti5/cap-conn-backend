@@ -5,7 +5,7 @@ const { requireApprovedUser } = require("../../middleware/requireApprovedUser");
 const { requireRole } = require("../../middleware/requireRole");
 const { validate } = require("../../middleware/validate");
 const enrollmentsController = require("./enrollments.controller");
-const { listEnrollmentsSchema, paramsSchema } = require("./enrollments.validation");
+const { listEnrollmentsSchema, paramsSchema, approveParamsSchema } = require("./enrollments.validation");
 
 const router = express.Router();
 
@@ -37,6 +37,27 @@ router.get(
   requireRole("TRAINER", "ADMIN"),
   validate(paramsSchema),
   enrollmentsController.listCourseEnrollments
+);
+
+router.post(
+  "/courses/:id/enrollments/:traineeId/approve",
+  requireRole("TRAINER", "ADMIN"),
+  validate(approveParamsSchema),
+  enrollmentsController.approveEnrollment
+);
+
+router.post(
+  "/courses/:id/enrollments/:traineeId/reject",
+  requireRole("TRAINER", "ADMIN"),
+  validate(approveParamsSchema),
+  enrollmentsController.rejectEnrollment
+);
+
+router.post(
+  "/courses/:id/remove-trainee",
+  requireRole("TRAINER", "ADMIN"),
+  validate(paramsSchema),
+  enrollmentsController.removeTrainee
 );
 
 module.exports = router;

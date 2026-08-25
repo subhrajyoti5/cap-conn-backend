@@ -31,6 +31,30 @@ const publishCourse = asyncHandler(async (req, res) => {
   res.json({ success: true, data: course });
 });
 
+const inviteTrainer = asyncHandler(async (req, res) => {
+  const invitation = await coursesService.inviteTrainer(
+    req.params.id,
+    req.body.email,
+    req.user.id
+  );
+  res.status(201).json({ success: true, data: invitation });
+});
+
+const acceptInvitation = asyncHandler(async (req, res) => {
+  const result = await coursesService.acceptInvitation(req.params.id, req.user.id);
+  res.json({ success: true, ...result });
+});
+
+const rejectInvitation = asyncHandler(async (req, res) => {
+  const result = await coursesService.rejectInvitation(req.params.id, req.user.id);
+  res.json({ success: true, ...result });
+});
+
+const listPendingInvitations = asyncHandler(async (req, res) => {
+  const invitations = await coursesService.listPendingInvitations(req.user.id);
+  res.json({ success: true, data: invitations });
+});
+
 module.exports = {
   listCourses,
   getCourse,
@@ -38,4 +62,8 @@ module.exports = {
   updateCourse,
   deleteCourse,
   publishCourse,
+  inviteTrainer,
+  acceptInvitation,
+  rejectInvitation,
+  listPendingInvitations,
 };

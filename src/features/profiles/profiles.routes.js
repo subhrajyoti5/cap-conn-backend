@@ -87,4 +87,10 @@ router.get(
   profilesController.getTrainerProfilePublic
 );
 
+router.get(
+  "/profiles/trainees/:userId",
+  validate(userIdSchema),
+  profilesController.getTraineeProfilePublic
+);
+
 module.exports = router;

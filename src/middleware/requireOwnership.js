@@ -14,8 +14,26 @@ const requireOwnership = (resourceLoader) => {
       throw new ApiError(404, "Resource not found", "NOT_FOUND");
     }
 
-    if (resource.trainerId !== req.user.id) {
-      throw new ApiError(403, "Not the resource owner", "NOT_OWNER");
+    const isOwner = resource.trainerId === req.user.id;
+    let isSecondary = false;
+
+    if (!isOwner && req.user.role === "TRAINER") {
+      const targetCourseId = resource.courseId || resource.id;
+      if (targetCourseId) {
+        const secondary = await prisma.courseTrainer.findUnique({
+          where: {
+            courseId_trainerId: {
+              courseId: targetCourseId,
+              trainerId: req.user.id,
+            }
+          }
+        });
+        isSecondary = !!secondary;
+      }
+    }
+
+    if (!isOwner && !isSecondary) {
+      throw new ApiError(403, "Not the resource owner or co-trainer", "NOT_OWNER");
     }
 
     req.resource = resource;
