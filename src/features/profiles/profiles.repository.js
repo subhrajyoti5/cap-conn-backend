@@ -40,14 +40,18 @@ const upsertTrainerProfile = async (userId, data) => {
   });
 };
 
+const getDelegate = (client, model) => {
+  return client[model] || client[model.charAt(0).toLowerCase() + model.slice(1)];
+};
+
 const createChild = async (model, data, tx) => {
   const client = tx || prisma;
-  return client[model].create({ data });
+  return getDelegate(client, model).create({ data });
 };
 
 const deleteChild = async (model, id, profileIdField, profileId, tx) => {
   const client = tx || prisma;
-  return client[model].deleteMany({
+  return getDelegate(client, model).deleteMany({
     where: { id, [profileIdField]: profileId },
   });
 };
