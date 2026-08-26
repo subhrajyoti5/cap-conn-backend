@@ -1,6 +1,11 @@
 const { asyncHandler } = require("../../utils/asyncHandler");
 const assessmentsService = require("./assessments.service");
 
+const getUploadUrl = asyncHandler(async (req, res) => {
+  const data = await assessmentsService.getUploadUrl(req.body, req.user);
+  res.json({ success: true, data });
+});
+
 const createAssessment = asyncHandler(async (req, res) => {
   const assessment = await assessmentsService.createAssessment(req.body, req.user);
   res.status(201).json({ success: true, data: assessment });
@@ -62,6 +67,25 @@ const submitAssessment = asyncHandler(async (req, res) => {
   res.json({ success: true, data: submission });
 });
 
+const submitDocumentAssessment = asyncHandler(async (req, res) => {
+  const submission = await assessmentsService.submitDocumentAssessment(
+    req.params.id,
+    req.user.id,
+    req.body
+  );
+  res.json({ success: true, data: submission });
+});
+
+const gradeManualSubmission = asyncHandler(async (req, res) => {
+  const submission = await assessmentsService.gradeManualSubmission(
+    req.params.id,
+    req.params.submissionId,
+    req.body,
+    req.user
+  );
+  res.json({ success: true, data: submission });
+});
+
 const getResult = asyncHandler(async (req, res) => {
   const result = await assessmentsService.getResult(req.params.id, req.user);
   res.json({ success: true, data: result });
@@ -71,12 +95,13 @@ const listSubmissions = asyncHandler(async (req, res) => {
   const result = await assessmentsService.listSubmissions(
     req.params.id,
     req.user,
-    req.validated.query
+    req.validated?.query || req.query
   );
   res.json({ success: true, ...result });
 });
 
 module.exports = {
+  getUploadUrl,
   createAssessment,
   generateAiQuestions,
   getAssessment,
@@ -85,6 +110,8 @@ module.exports = {
   listCourseAssessments,
   startAssessment,
   submitAssessment,
+  submitDocumentAssessment,
+  gradeManualSubmission,
   getResult,
   listSubmissions,
 };

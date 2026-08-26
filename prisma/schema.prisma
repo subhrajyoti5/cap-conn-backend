@@ -44,6 +44,11 @@ enum ResourceType {
   OTHER
 }
 
+enum AssessmentType {
+  MCQ
+  DOCUMENT
+}
+
 enum AssessmentStatus {
   DRAFT
   PUBLISHED
@@ -285,6 +290,9 @@ model Assessment {
   trainer     User             @relation("AssessmentTrainer", fields: [trainerId], references: [id])
   title       String
   description String?
+  type        AssessmentType   @default(MCQ)
+  fileUrl     String?
+  fileName    String?
   status      AssessmentStatus @default(DRAFT)
   totalMarks  Int
   deadline    DateTime
@@ -331,6 +339,11 @@ model Submission {
   trainee      User             @relation(fields: [traineeId], references: [id], onDelete: Cascade)
   status       SubmissionStatus @default(IN_PROGRESS)
   score        Int?
+  fileUrl      String?
+  fileName     String?
+  notes        String?
+  feedback     String?
+  gradedAt     DateTime?
   startedAt    DateTime         @default(now())
   submittedAt  DateTime?
 

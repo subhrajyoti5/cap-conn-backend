@@ -1,17 +1,10 @@
 const { prisma } = require("../../database/prisma");
 
 const getTraineeDashboard = async (traineeId) => {
-  const [activeCourses, pendingAssessments, completedAssessments, recentResults, certifications] =
+  const [activeCourses, completedAssessments, recentResults, certifications, activeEnrollments] =
     await Promise.all([
       prisma.enrollment.count({
         where: { traineeId, status: "ACTIVE" },
-      }),
-      prisma.submission.count({
-        where: {
-          traineeId,
-          status: "IN_PROGRESS",
-          assessment: { status: "PUBLISHED", deadline: { gte: new Date() } },
-        },
       }),
       prisma.submission.count({
         where: { traineeId, status: "GRADED" },
@@ -27,11 +20,30 @@ const getTraineeDashboard = async (traineeId) => {
         orderBy: { issueDate: "desc" },
         take: 5,
       }),
+      prisma.enrollment.findMany({
+        where: { traineeId, status: "ACTIVE" },
+        select: { courseId: true },
+      }),
     ]);
+
+  const courseIds = activeEnrollments.map((e) => e.courseId);
+  const totalPublishedAssessments = await prisma.assessment.count({
+    where: {
+      courseId: { in: courseIds },
+      status: "PUBLISHED",
+      deadline: { gte: new Date() },
+      submissions: {
+        none: {
+          traineeId,
+          status: { in: ["SUBMITTED", "GRADED"] },
+        },
+      },
+    },
+  });
 
   return {
     activeCourses,
-    pendingAssessments,
+    pendingAssessments: totalPublishedAssessments,
     completedAssessments,
     recentResults,
     certifications,

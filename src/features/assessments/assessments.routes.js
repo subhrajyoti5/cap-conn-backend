@@ -4,11 +4,15 @@ const { requireUser } = require("../../middleware/requireUser");
 const { requireApprovedUser } = require("../../middleware/requireApprovedUser");
 const { requireRole } = require("../../middleware/requireRole");
 const { validate } = require("../../middleware/validate");
+const { strictLimiter } = require("../../middleware/rateLimiter");
 const assessmentsController = require("./assessments.controller");
 const {
   createAssessmentSchema,
   updateAssessmentSchema,
   submitSchema,
+  submitDocumentSchema,
+  gradeSubmissionSchema,
+  uploadUrlSchema,
   paramsSchema,
   listSchema,
   generateAiSchema,
@@ -17,6 +21,13 @@ const {
 const router = express.Router();
 
 router.use(authenticate, requireUser, requireApprovedUser);
+
+router.post(
+  "/assessments/upload-url",
+  strictLimiter,
+  validate(uploadUrlSchema),
+  assessmentsController.getUploadUrl
+);
 
 router.post(
   "/assessments",
@@ -66,6 +77,20 @@ router.post(
   requireRole("TRAINEE"),
   validate(submitSchema),
   assessmentsController.submitAssessment
+);
+
+router.post(
+  "/assessments/:id/submit-document",
+  requireRole("TRAINEE"),
+  validate(submitDocumentSchema),
+  assessmentsController.submitDocumentAssessment
+);
+
+router.post(
+  "/assessments/:id/submissions/:submissionId/grade",
+  requireRole("TRAINER", "ADMIN"),
+  validate(gradeSubmissionSchema),
+  assessmentsController.gradeManualSubmission
 );
 
 router.get(

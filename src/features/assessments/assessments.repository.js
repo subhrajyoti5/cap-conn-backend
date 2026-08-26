@@ -29,20 +29,28 @@ const findByCourse = async (courseId) => {
 
 const create = async (data) => {
   const { questions, ...assessmentData } = data;
-  return prisma.assessment.create({
-    data: {
-      ...assessmentData,
-      questions: {
-        create: questions.map((q) => ({
-          text: q.text,
-          marks: q.marks,
-          order: q.order,
-          options: {
-            create: q.options,
-          },
-        })),
+  if (questions && questions.length > 0) {
+    return prisma.assessment.create({
+      data: {
+        ...assessmentData,
+        questions: {
+          create: questions.map((q) => ({
+            text: q.text,
+            marks: q.marks,
+            order: q.order,
+            options: {
+              create: q.options,
+            },
+          })),
+        },
       },
-    },
+      include: {
+        questions: { include: { options: true } },
+      },
+    });
+  }
+  return prisma.assessment.create({
+    data: assessmentData,
     include: {
       questions: { include: { options: true } },
     },
@@ -63,12 +71,27 @@ const publish = async (id) => {
 const findSubmission = async (assessmentId, traineeId) => {
   return prisma.submission.findUnique({
     where: { assessmentId_traineeId: { assessmentId, traineeId } },
-    include: { answers: true },
+    include: { answers: true, trainee: true },
+  });
+};
+
+const findSubmissionById = async (submissionId) => {
+  return prisma.submission.findUnique({
+    where: { id: submissionId },
+    include: { assessment: true, trainee: true },
   });
 };
 
 const createSubmission = async (data) => {
-  return prisma.submission.create({ data, include: { answers: true } });
+  return prisma.submission.create({ data, include: { answers: true, trainee: true } });
+};
+
+const updateSubmission = async (submissionId, data) => {
+  return prisma.submission.update({
+    where: { id: submissionId },
+    data,
+    include: { answers: true, trainee: true },
+  });
 };
 
 const upsertAnswer = async (submissionId, questionId, selectedOptionId, tx) => {
@@ -80,21 +103,34 @@ const upsertAnswer = async (submissionId, questionId, selectedOptionId, tx) => {
   });
 };
 
-const gradeSubmission = async (submissionId, score, tx) => {
+const gradeSubmission = async (submissionId, score, feedback, tx) => {
   const client = tx || prisma;
   return client.submission.update({
     where: { id: submissionId },
-    data: { status: "GRADED", score, submittedAt: new Date() },
+    data: {
+      status: "GRADED",
+      score,
+      feedback: feedback || null,
+      gradedAt: new Date(),
+    },
   });
 };
 
-const findSubmissionsByAssessment = async (assessmentId, { page, limit }) => {
+const findSubmissionsByAssessment = async (assessmentId, { page = 1, limit = 50 } = {}) => {
   const skip = (page - 1) * limit;
   const [data, total] = await Promise.all([
     prisma.submission.findMany({
       where: { assessmentId },
-      include: { trainee: true },
-      orderBy: { createdAt: "desc" },
+      include: {
+        trainee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { submittedAt: "desc" },
       skip,
       take: limit,
     }),
@@ -110,7 +146,9 @@ module.exports = {
   update,
   publish,
   findSubmission,
+  findSubmissionById,
   createSubmission,
+  updateSubmission,
   upsertAnswer,
   gradeSubmission,
   findSubmissionsByAssessment,
