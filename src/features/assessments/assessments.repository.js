@@ -1,24 +1,50 @@
 const { prisma } = require("../../database/prisma");
 
 const findById = async (id, includeAnswers = false) => {
-  return prisma.assessment.findUnique({
-    where: { id },
-    include: {
-      course: true,
-      questions: {
-        orderBy: { order: "asc" },
-        include: {
-          options: {
-            select: {
-              id: true,
-              text: true,
-              isCorrect: includeAnswers,
+  try {
+    return await prisma.assessment.findUnique({
+      where: { id },
+      include: {
+        course: true,
+        questions: {
+          orderBy: { order: "asc" },
+          include: {
+            options: {
+              select: {
+                id: true,
+                text: true,
+                isCorrect: includeAnswers,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error("Prisma error in assessment findById, trying fallback:", err.message);
+    return prisma.assessment.findUnique({
+      where: { id },
+      include: {
+        course: true,
+        questions: {
+          select: {
+            id: true,
+            text: true,
+            marks: true,
+            order: true,
+            options: {
+              select: {
+                id: true,
+                text: true,
+                isCorrect: includeAnswers,
+              },
+            },
+          },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+  }
 };
 
 const findByCourse = async (courseId, isStaff = false) => {
