@@ -23,7 +23,7 @@ const signResourceUrl = async (resource) => {
   }
 };
 
-const findById = async (id) => {
+const findById = async (id, userId = null) => {
   const course = await prisma.course.findUnique({
     where: { id },
     include: {
@@ -34,6 +34,11 @@ const findById = async (id) => {
         include: {
           questions: {
             include: { options: true },
+          },
+          submissions: {
+            include: {
+              trainee: { select: { id: true, name: true, email: true } },
+            },
           },
         },
       },
@@ -49,15 +54,31 @@ const findById = async (id) => {
       },
       trainers: {
         include: {
-          trainer: { select: { id: true, name: true, email: true } }
-        }
+          trainer: { select: { id: true, name: true, email: true } },
+        },
       },
       invitations: true,
     },
   });
 
-  if (course && course.resources) {
+  if (!course) return null;
+
+  if (course.resources && course.resources.length > 0) {
     course.resources = await Promise.all(course.resources.map(signResourceUrl));
+  }
+
+  // Map trainee submission for easy frontend access if user is trainee
+  if (course.assessments && course.assessments.length > 0) {
+    course.assessments = course.assessments.map((a) => {
+      let mySub = null;
+      if (userId && a.submissions) {
+        mySub = a.submissions.find((s) => s.traineeId === userId) || null;
+      }
+      return {
+        ...a,
+        submission: mySub || (a.submissions && a.submissions[0]) || null,
+      };
+    });
   }
 
   return course;

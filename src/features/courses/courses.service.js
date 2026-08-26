@@ -25,8 +25,8 @@ const listCourses = async (filters, user) => {
   return result;
 };
 
-const getCourse = async (id) => {
-  const course = await coursesRepo.findById(id);
+const getCourse = async (id, user) => {
+  const course = await coursesRepo.findById(id, user?.id);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
   return course;
 };
