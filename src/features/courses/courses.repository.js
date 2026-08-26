@@ -24,59 +24,108 @@ const signResourceUrl = async (resource) => {
 };
 
 const findById = async (id, userId = null) => {
-  const course = await prisma.course.findUnique({
-    where: { id },
-    include: {
-      trainer: { select: { id: true, name: true, email: true, role: true } },
-      subject: true,
-      resources: true,
-      assessments: {
-        include: {
-          questions: {
-            include: { options: true },
-          },
-          submissions: {
-            include: {
-              trainee: { select: { id: true, name: true, email: true } },
+  let course;
+  try {
+    course = await prisma.course.findUnique({
+      where: { id },
+      include: {
+        trainer: { select: { id: true, name: true, email: true, role: true } },
+        subject: true,
+        resources: true,
+        assessments: {
+          include: {
+            questions: {
+              include: { options: true },
+            },
+            submissions: {
+              include: {
+                trainee: { select: { id: true, name: true, email: true } },
+              },
             },
           },
         },
-      },
-      enrollments: {
-        include: {
-          trainee: { select: { id: true, name: true, email: true, role: true } },
+        enrollments: {
+          include: {
+            trainee: { select: { id: true, name: true, email: true, role: true } },
+          },
         },
-      },
-      feedbacks: {
-        include: {
-          user: { select: { id: true, name: true, email: true } },
+        feedbacks: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
         },
-      },
-      trainers: {
-        include: {
-          trainer: { select: { id: true, name: true, email: true } },
+        trainers: {
+          include: {
+            trainer: { select: { id: true, name: true, email: true } },
+          },
         },
+        invitations: true,
       },
-      invitations: true,
-    },
-  });
+    });
+  } catch (err) {
+    console.error("Prisma error querying course by id, retrying without nested submissions:", err);
+    course = await prisma.course.findUnique({
+      where: { id },
+      include: {
+        trainer: { select: { id: true, name: true, email: true, role: true } },
+        subject: true,
+        resources: true,
+        assessments: {
+          include: {
+            questions: {
+              include: { options: true },
+            },
+          },
+        },
+        enrollments: {
+          include: {
+            trainee: { select: { id: true, name: true, email: true, role: true } },
+          },
+        },
+        feedbacks: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        trainers: {
+          include: {
+            trainer: { select: { id: true, name: true, email: true } },
+          },
+        },
+        invitations: true,
+      },
+    });
+  }
 
   if (!course) return null;
 
   if (course.resources && course.resources.length > 0) {
-    course.resources = await Promise.all(course.resources.map(signResourceUrl));
+    try {
+      course.resources = await Promise.all(
+        course.resources.map(async (r) => {
+          try {
+            return await signResourceUrl(r);
+          } catch (e) {
+            console.error("Error signing individual resource:", r.id, e);
+            return r;
+          }
+        })
+      );
+    } catch (err) {
+      console.error("Failed to sign resources array:", err);
+    }
   }
 
   // Map trainee submission for easy frontend access if user is trainee
   if (course.assessments && course.assessments.length > 0) {
     course.assessments = course.assessments.map((a) => {
       let mySub = null;
-      if (userId && a.submissions) {
+      if (userId && a.submissions && Array.isArray(a.submissions)) {
         mySub = a.submissions.find((s) => s.traineeId === userId) || null;
       }
       return {
         ...a,
-        submission: mySub || (a.submissions && a.submissions[0]) || null,
+        submission: mySub || (Array.isArray(a.submissions) ? a.submissions[0] : null) || null,
       };
     });
   }
