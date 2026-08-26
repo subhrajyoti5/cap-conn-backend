@@ -6,7 +6,10 @@ const optionSchema = z.object({
 });
 
 const questionSchema = z.object({
+  id: z.string().uuid().optional(),
   text: z.string().min(1),
+  explanation: z.string().optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
   marks: z.coerce.number().int().positive().default(1),
   order: z.coerce.number().int().nonnegative(),
   options: z.array(optionSchema).min(2),
@@ -20,7 +23,10 @@ const createAssessmentSchema = z.object({
     type: z.enum(["MCQ", "DOCUMENT"]).optional().default("MCQ"),
     fileUrl: z.string().optional().nullable(),
     fileName: z.string().optional().nullable(),
+    evaluationMode: z.enum(["INSTANT", "MANUAL_RELEASE"]).optional().default("INSTANT"),
+    resultsReleased: z.boolean().optional(),
     totalMarks: z.coerce.number().int().positive(),
+    startTime: z.coerce.date().optional(),
     deadline: z.coerce.date(),
     questions: z.array(questionSchema).optional(),
   }),
@@ -30,10 +36,15 @@ const updateAssessmentSchema = z.object({
   body: z.object({
     title: z.string().min(1).optional(),
     description: z.string().optional().nullable(),
+    type: z.enum(["MCQ", "DOCUMENT"]).optional(),
     fileUrl: z.string().optional().nullable(),
     fileName: z.string().optional().nullable(),
+    evaluationMode: z.enum(["INSTANT", "MANUAL_RELEASE"]).optional(),
+    resultsReleased: z.boolean().optional(),
     totalMarks: z.coerce.number().int().positive().optional(),
+    startTime: z.coerce.date().optional(),
     deadline: z.coerce.date().optional(),
+    questions: z.array(questionSchema).optional(),
   }),
 });
 

@@ -157,6 +157,24 @@ const updateAssessment = async (id, data, user) => {
   return assessmentsRepo.update(id, data);
 };
 
+const deleteAssessment = async (id, user) => {
+  const assessment = await assessmentsRepo.findById(id, true);
+  if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
+  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
+    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
+  }
+
+  await assessmentsRepo.remove(id);
+  await createAuditLog(
+    user.id,
+    "ASSESSMENT_DELETED",
+    "ASSESSMENT",
+    id,
+    null
+  );
+  return { deleted: true };
+};
+
 const publishAssessment = async (id, user) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
@@ -195,7 +213,8 @@ const listCourseAssessments = async (courseId, user) => {
     }
   }
 
-  const assessments = await assessmentsRepo.findByCourse(courseId);
+  const isStaff = user.role === "ADMIN" || course.trainerId === user.id;
+  const assessments = await assessmentsRepo.findByCourse(courseId, isStaff);
   if (user.role === "TRAINEE") {
     const published = assessments.filter((a) => a.status === "PUBLISHED");
     // Attach trainee submissions
@@ -401,6 +420,7 @@ module.exports = {
   getAssessment,
   updateAssessment,
   publishAssessment,
+  deleteAssessment,
   listCourseAssessments,
   startAssessment,
   submitAssessment,

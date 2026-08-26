@@ -59,6 +59,13 @@ router.patch(
   assessmentsController.publishAssessment
 );
 
+router.delete(
+  "/assessments/:id",
+  requireRole("TRAINER", "ADMIN"),
+  validate(paramsSchema),
+  assessmentsController.deleteAssessment
+);
+
 router.get(
   "/courses/:id/assessments",
   validate(paramsSchema),

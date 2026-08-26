@@ -69,14 +69,19 @@ const getResource = async (id, user) => {
     return { resource, downloadUrl: resource.storageKey };
   }
 
-  const command = new GetObjectCommand({
-    Bucket: r2Bucket,
-    Key: resource.storageKey,
-  });
+  let downloadUrl = "#";
+  try {
+    const command = new GetObjectCommand({
+      Bucket: r2Bucket,
+      Key: resource.storageKey,
+    });
 
-  const downloadUrl = await getSignedUrl(r2Client, command, {
-    expiresIn: DOWNLOAD_TTL_SECONDS,
-  });
+    downloadUrl = await getSignedUrl(r2Client, command, {
+      expiresIn: DOWNLOAD_TTL_SECONDS,
+    });
+  } catch (err) {
+    console.warn("R2 presigned download URL generation failed:", err.message);
+  }
 
   return { resource, downloadUrl };
 };

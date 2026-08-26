@@ -100,6 +100,11 @@ const listSubmissions = asyncHandler(async (req, res) => {
   res.json({ success: true, ...result });
 });
 
+const deleteAssessment = asyncHandler(async (req, res) => {
+  await assessmentsService.deleteAssessment(req.params.id, req.user);
+  res.json({ success: true, message: "Assessment deleted successfully" });
+});
+
 module.exports = {
   getUploadUrl,
   createAssessment,
@@ -107,6 +112,7 @@ module.exports = {
   getAssessment,
   updateAssessment,
   publishAssessment,
+  deleteAssessment,
   listCourseAssessments,
   startAssessment,
   submitAssessment,
