@@ -17,11 +17,18 @@ const router = express.Router();
 
 router.use(authenticate, requireUser, requireApprovedUser);
 
+const enrollmentsController = require("../enrollments/enrollments.controller");
+
 router.get("/courses", validate(listCoursesSchema), coursesController.listCourses);
 router.get(
   "/courses/invitations/pending",
   requireRole("TRAINER"),
   coursesController.listPendingInvitations
+);
+router.get(
+  "/courses/enrollments/pending",
+  requireRole("TRAINER", "ADMIN"),
+  enrollmentsController.listPendingEnrollments
 );
 router.post(
   "/courses",

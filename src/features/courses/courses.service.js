@@ -100,19 +100,20 @@ const inviteTrainer = async (courseId, email, actorId) => {
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
 
   const invitedUser = await prisma.user.findUnique({ where: { email } });
-  if (invitedUser) {
-    if (invitedUser.role !== "TRAINER") {
-      throw new ApiError(400, "The user associated with this email is not a trainer", "BAD_REQUEST");
-    }
-    if (course.trainerId === invitedUser.id) {
-      throw new ApiError(400, "Trainer is already the primary instructor", "BAD_REQUEST");
-    }
-    const existingSecondary = await prisma.courseTrainer.findUnique({
-      where: { courseId_trainerId: { courseId, trainerId: invitedUser.id } },
-    });
-    if (existingSecondary) {
-      throw new ApiError(400, "Trainer is already a secondary instructor in this course", "BAD_REQUEST");
-    }
+  if (!invitedUser) {
+    throw new ApiError(400, "No registered trainer account found with this email.", "BAD_REQUEST");
+  }
+  if (invitedUser.role !== "TRAINER") {
+    throw new ApiError(400, "The user associated with this email is not a trainer", "BAD_REQUEST");
+  }
+  if (course.trainerId === invitedUser.id) {
+    throw new ApiError(400, "Trainer is already the primary instructor", "BAD_REQUEST");
+  }
+  const existingSecondary = await prisma.courseTrainer.findUnique({
+    where: { courseId_trainerId: { courseId, trainerId: invitedUser.id } },
+  });
+  if (existingSecondary) {
+    throw new ApiError(400, "Trainer is already a secondary instructor in this course", "BAD_REQUEST");
   }
 
   const invitation = await prisma.courseInvitation.upsert({

@@ -62,6 +62,11 @@ const removeTrainee = asyncHandler(async (req, res) => {
   res.json({ success: true, data });
 });
 
+const listPendingEnrollments = asyncHandler(async (req, res) => {
+  const data = await enrollmentsService.listPendingEnrollmentsForTrainer(req.user.id);
+  res.json({ success: true, data });
+});
+
 module.exports = {
   enroll,
   drop,
@@ -70,4 +75,5 @@ module.exports = {
   approveEnrollment,
   rejectEnrollment,
   removeTrainee,
+  listPendingEnrollments,
 };
