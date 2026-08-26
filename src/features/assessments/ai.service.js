@@ -20,10 +20,10 @@ const getClient = () => {
       );
     }
   }
-  if (!openaiApiKey || openaiApiKey.includes("YOUR_OPENROUTER_KEY_HERE")) {
+  if (!openaiApiKey || openaiApiKey.includes("YOUR_OPENAI_KEY_HERE") || openaiApiKey.includes("YOUR_OPENROUTER_KEY_HERE")) {
     throw new ApiError(
       503,
-      "OPENAI_API_KEY is not configured in .env (Please replace the placeholder key in teamcon/.env with your real OpenRouter key)",
+      "OPENAI_API_KEY is not configured in .env",
       "SERVICE_UNAVAILABLE"
     );
   }
@@ -184,18 +184,21 @@ const generateMcqFromImages = async ({
     : promptText;
 
   let completion;
-  const targetModel = (openaiModel || "openrouter/auto")
+  const isOpenRouter = typeof openaiBaseUrl === "string" && openaiBaseUrl.includes("openrouter");
+  const targetModel = (openaiModel || (isOpenRouter ? "openrouter/auto" : "gpt-4o-mini"))
     .replace(/[–—]/g, "-")
     .trim();
 
-  const candidateModels = [
-    targetModel,
-    "openrouter/auto",
-    "google/gemini-2.0-flash-exp:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "deepseek/deepseek-r1:free",
-    "qwen/qwen-2.5-coder-32b-instruct:free",
-  ].filter((v, i, a) => v && a.indexOf(v) === i);
+  const candidateModels = isOpenRouter
+    ? [
+        targetModel,
+        "openrouter/auto",
+        "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+      ].filter((v, i, a) => v && a.indexOf(v) === i)
+    : [targetModel, "gpt-4o-mini", "gpt-4o"].filter((v, i, a) => v && a.indexOf(v) === i);
 
   let lastError;
   for (const modelCandidate of candidateModels) {
