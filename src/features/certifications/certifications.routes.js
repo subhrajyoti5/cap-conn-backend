@@ -15,6 +15,9 @@ router
   .get(certController.listCertifications)
   .post(validate(certificationSchema), certController.createCertification);
 
+router.get("/certifications/distributed", certController.listDistributedCertifications);
+router.post("/certifications/issue", certController.issueCertifications);
+
 router.delete(
   "/certifications/:id",
   validate(idSchema),
@@ -22,3 +25,4 @@ router.delete(
 );
 
 module.exports = router;
+

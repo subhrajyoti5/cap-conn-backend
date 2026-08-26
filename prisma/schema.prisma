@@ -183,11 +183,13 @@ model Certification {
   id            String    @id @default(uuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issuerId      String?
   name          String
   issuer        String
   issueDate     DateTime
   expiryDate    DateTime?
   credentialUrl String?
+  templateData  String?
   createdAt     DateTime  @default(now())
 
   @@map("certifications")
