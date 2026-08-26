@@ -94,8 +94,9 @@ const generateAiSchema = z.object({
     id: z.string().uuid(),
   }),
   body: z.object({
-    resourceIds: z.array(z.string().uuid()).min(1),
+    resourceIds: z.array(z.string().uuid()).optional().default([]),
     customInstructions: z.string().max(4000).optional().nullable(),
+    theoryText: z.string().max(10000).optional().nullable(),
     questionCount: z.coerce.number().int().min(1).max(20),
     marksPerQuestion: z.coerce.number().int().positive().optional().default(1),
   }),

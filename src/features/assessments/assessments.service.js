@@ -119,6 +119,7 @@ const generateAiQuestions = async (courseId, body, user) => {
     resources,
     questionCount: body.questionCount,
     customInstructions: body.customInstructions,
+    theoryText: body.theoryText,
     marksPerQuestion: body.marksPerQuestion,
   });
 };
