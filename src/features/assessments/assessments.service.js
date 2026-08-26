@@ -30,6 +30,25 @@ const validateQuestions = (questions) => {
   }
 };
 
+const notifyEnrolledTrainees = async (assessment, tx) => {
+  const client = tx || prisma;
+  const enrollments = await client.enrollment.findMany({
+    where: { courseId: assessment.courseId, status: "ACTIVE" },
+    select: { traineeId: true },
+  });
+
+  const notifications = enrollments.map((e) => ({
+    userId: e.traineeId,
+    type: "ASSESSMENT",
+    title: "New Assignment Available",
+    body: `A new assignment "${assessment.title}" has been published in your course.`,
+  }));
+
+  if (notifications.length > 0) {
+    await client.notification.createMany({ data: notifications });
+  }
+};
+
 const createAssessment = async (data, user) => {
   const course = await coursesRepo.findById(data.courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
@@ -39,7 +58,12 @@ const createAssessment = async (data, user) => {
 
   validateQuestions(data.questions);
   const trainerId = course.trainerId;
-  return assessmentsRepo.create({ ...data, trainerId, status: "DRAFT" });
+  const created = await assessmentsRepo.create({ ...data, trainerId, status: data.status || "DRAFT" });
+
+  if (created.status === "PUBLISHED") {
+    await notifyEnrolledTrainees(created);
+  }
+  return created;
 };
 
 const generateAiQuestions = async (courseId, body, user) => {
@@ -60,20 +84,16 @@ const generateAiQuestions = async (courseId, body, user) => {
         "VALIDATION_ERROR"
       );
     }
-    if (!isImageResource(resource)) {
-      throw new ApiError(
-        400,
-        `Resource "${resource.title}" is not an image`,
-        "VALIDATION_ERROR"
-      );
+    if (isImageResource(resource)) {
+      resources.push(resource);
     }
-    resources.push(resource);
   }
 
   return aiService.generateMcqFromImages({
     resources,
     questionCount: body.questionCount,
     customInstructions: body.customInstructions,
+    theoryText: body.theoryText,
     marksPerQuestion: body.marksPerQuestion,
   });
 };
@@ -101,13 +121,19 @@ const getAssessment = async (id, user) => {
 const updateAssessment = async (id, data, user) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
-  if (assessment.trainerId !== user.id) {
+  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
     throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
   }
-  if (assessment.status !== "DRAFT") {
-    throw new ApiError(409, "Can only edit draft assessments", "CONFLICT");
+  if (data.questions) {
+    validateQuestions(data.questions);
   }
-  return assessmentsRepo.update(id, data);
+  const isPublishingNow = assessment.status === "DRAFT" && data.status === "PUBLISHED";
+  const updated = await assessmentsRepo.update(id, data);
+
+  if (isPublishingNow || updated.status === "PUBLISHED") {
+    await notifyEnrolledTrainees(updated);
+  }
+  return updated;
 };
 
 const publishAssessment = async (id, user) => {
@@ -130,6 +156,7 @@ const publishAssessment = async (id, user) => {
       null,
       tx
     );
+    await notifyEnrolledTrainees(updated, tx);
     return updated;
   });
 };
@@ -148,7 +175,8 @@ const listCourseAssessments = async (courseId, user) => {
     }
   }
 
-  const assessments = await assessmentsRepo.findByCourse(courseId);
+  const isStaff = user.role === "ADMIN" || course.trainerId === user.id;
+  const assessments = await assessmentsRepo.findByCourse(courseId, isStaff);
   if (user.role === "TRAINEE") {
     return assessments.filter((a) => a.status === "PUBLISHED");
   }
@@ -160,6 +188,9 @@ const startAssessment = async (id, traineeId) => {
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
   if (assessment.status !== "PUBLISHED") {
     throw new ApiError(403, "Assessment not published", "ASSESSMENT_CLOSED");
+  }
+  if (assessment.startTime && new Date() < new Date(assessment.startTime)) {
+    throw new ApiError(403, "Assessment has not started yet (Upcoming)", "ASSESSMENT_UPCOMING");
   }
   if (new Date() > assessment.deadline) {
     throw new ApiError(403, "Assessment deadline passed", "ASSESSMENT_CLOSED");
@@ -247,6 +278,13 @@ const getResult = async (id, user) => {
     if (!submission || submission.status !== "GRADED") {
       throw new ApiError(404, "Result not found", "NOT_FOUND");
     }
+    if (assessment.evaluationMode === "MANUAL_RELEASE" && !assessment.resultsReleased) {
+      throw new ApiError(
+        403,
+        "Results have not been released by the trainer yet",
+        "RESULTS_PENDING_RELEASE"
+      );
+    }
     return { assessment, submission };
   }
 
@@ -270,12 +308,22 @@ const listSubmissions = async (id, user, query) => {
   return assessmentsRepo.findSubmissionsByAssessment(id, query);
 };
 
+const deleteAssessment = async (id, user) => {
+  const assessment = await assessmentsRepo.findById(id, true);
+  if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
+  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
+    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
+  }
+  return assessmentsRepo.remove(id);
+};
+
 module.exports = {
   createAssessment,
   generateAiQuestions,
   getAssessment,
   updateAssessment,
   publishAssessment,
+  deleteAssessment,
   listCourseAssessments,
   startAssessment,
   submitAssessment,

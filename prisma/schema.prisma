@@ -277,19 +277,27 @@ model LearningResource {
   @@map("learning_resources")
 }
 
+enum EvaluationMode {
+  INSTANT
+  MANUAL_RELEASE
+}
+
 model Assessment {
-  id          String           @id @default(uuid())
-  courseId    String
-  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  trainerId   String
-  trainer     User             @relation("AssessmentTrainer", fields: [trainerId], references: [id])
-  title       String
-  description String?
-  status      AssessmentStatus @default(DRAFT)
-  totalMarks  Int
-  deadline    DateTime
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id              String           @id @default(uuid())
+  courseId        String
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  trainerId       String
+  trainer         User             @relation("AssessmentTrainer", fields: [trainerId], references: [id])
+  title           String
+  description     String?
+  status          AssessmentStatus @default(DRAFT)
+  evaluationMode  EvaluationMode   @default(INSTANT)
+  resultsReleased Boolean          @default(true)
+  totalMarks      Int
+  startTime       DateTime         @default(now())
+  deadline        DateTime
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   questions   Question[]
   submissions Submission[]
@@ -302,6 +310,8 @@ model Question {
   assessmentId String
   assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   text         String
+  explanation  String?
+  imageUrl     String?
   marks        Int        @default(1)
   order        Int
 
@@ -345,9 +355,9 @@ model Answer {
   submissionId     String
   submission       Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   questionId       String
-  question         Question   @relation(fields: [questionId], references: [id])
+  question         Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
   selectedOptionId String?
-  selectedOption   Option?    @relation(fields: [selectedOptionId], references: [id])
+  selectedOption   Option?    @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
 
   @@unique([submissionId, questionId])
   @@map("answers")

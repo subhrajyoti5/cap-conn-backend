@@ -1,22 +1,41 @@
-const OpenAI = require("openai");
 const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { r2Client } = require("../../config/r2");
-const { openaiApiKey, r2Bucket } = require("../../config/env");
+const { openaiApiKey, openaiBaseUrl, openaiModel, r2Bucket } = require("../../config/env");
 const { ApiError } = require("../../utils/ApiError");
 const { DOWNLOAD_TTL_SECONDS } = require("../resources/resources.constants");
 
 const OVERGENERATE = 5;
+let OpenAI;
 
 const getClient = () => {
-  if (!openaiApiKey) {
+  if (!OpenAI) {
+    try {
+      OpenAI = require("openai");
+    } catch (err) {
+      throw new ApiError(
+        503,
+        "openai package is not installed yet",
+        "SERVICE_UNAVAILABLE"
+      );
+    }
+  }
+  if (!openaiApiKey || openaiApiKey.includes("YOUR_OPENROUTER_KEY_HERE")) {
     throw new ApiError(
       503,
-      "OPENAI_API_KEY is not configured",
+      "OPENAI_API_KEY is not configured in .env (Please replace the placeholder key in teamcon/.env with your real OpenRouter key)",
       "SERVICE_UNAVAILABLE"
     );
   }
-  return new OpenAI({ apiKey: openaiApiKey });
+  const options = { apiKey: openaiApiKey };
+  if (openaiBaseUrl) {
+    options.baseURL = openaiBaseUrl;
+    options.defaultHeaders = {
+      "HTTP-Referer": "http://localhost:3000",
+      "X-Title": "Capacity Connect LMS",
+    };
+  }
+  return new OpenAI(options);
 };
 
 const isExternalUrl = (key) =>
@@ -42,11 +61,14 @@ Rules:
 - Include a short explanation for each question.
 - Do not wrap the JSON in markdown fences.`;
 
-const buildUserText = ({ questionCount, customInstructions, marks }) => {
+const buildUserText = ({ questionCount, customInstructions, theoryText, marks }) => {
   const total = questionCount + OVERGENERATE;
   return [
     `Generate exactly ${total} MCQ questions (requested ${questionCount} + ${OVERGENERATE} extras for curation).`,
     `Default marks per question: ${marks}.`,
+    theoryText?.trim()
+      ? `Theory / Study Material Provided:\n${theoryText.trim()}`
+      : "",
     customInstructions?.trim()
       ? `Additional trainer instructions:\n${customInstructions.trim()}`
       : "No extra instructions.",
@@ -67,7 +89,7 @@ const buildUserText = ({ questionCount, customInstructions, marks }) => {
         },
       ],
     }),
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 };
 
 const normalizeQuestions = (raw, marks) => {
@@ -123,12 +145,13 @@ const normalizeQuestions = (raw, marks) => {
 };
 
 /**
- * Generate N+5 candidate MCQs from course image resources via gpt-4o-mini.
+ * Generate N+5 candidate MCQs from prompt, theory text, and/or image resources.
  */
 const generateMcqFromImages = async ({
-  resources,
+  resources = [],
   questionCount,
   customInstructions,
+  theoryText,
   marksPerQuestion = 1,
 }) => {
   const client = getClient();
@@ -136,54 +159,88 @@ const generateMcqFromImages = async ({
   const count = Math.max(1, Math.min(20, Math.floor(Number(questionCount) || 1)));
 
   const imageUrls = [];
-  for (const resource of resources) {
-    const url = await resolveImageUrl(resource);
-    imageUrls.push(url);
+  if (Array.isArray(resources) && resources.length > 0) {
+    for (const resource of resources) {
+      const url = await resolveImageUrl(resource);
+      imageUrls.push(url);
+    }
   }
 
-  if (imageUrls.length === 0) {
-    throw new ApiError(
-      400,
-      "At least one image resource is required",
-      "VALIDATION_ERROR"
-    );
-  }
+  const promptText = buildUserText({
+    questionCount: count,
+    customInstructions,
+    theoryText,
+    marks,
+  });
 
-  const content = [
-    { type: "text", text: buildUserText({ questionCount: count, customInstructions, marks }) },
-    ...imageUrls.map((url) => ({
-      type: "image_url",
-      image_url: { url, detail: "high" },
-    })),
-  ];
+  const content = imageUrls.length > 0
+    ? [
+        { type: "text", text: promptText },
+        ...imageUrls.map((url) => ({
+          type: "image_url",
+          image_url: { url, detail: "high" },
+        })),
+      ]
+    : promptText;
 
   let completion;
-  try {
-    completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      temperature: 0.4,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content },
-      ],
-    });
-  } catch (err) {
+  const targetModel = (openaiModel || "openrouter/auto")
+    .replace(/[–—]/g, "-")
+    .trim();
+
+  const candidateModels = [
+    targetModel,
+    "openrouter/auto",
+    "google/gemini-2.0-flash-exp:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "deepseek/deepseek-r1:free",
+    "qwen/qwen-2.5-coder-32b-instruct:free",
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+  let lastError;
+  for (const modelCandidate of candidateModels) {
+    try {
+      const params = {
+        model: modelCandidate,
+        temperature: 0.4,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content },
+        ],
+      };
+      if (!openaiBaseUrl) {
+        params.response_format = { type: "json_object" };
+      }
+      completion = await client.chat.completions.create(params);
+      if (completion?.choices?.[0]?.message) {
+        break;
+      }
+    } catch (err) {
+      lastError = err;
+      continue;
+    }
+  }
+
+  if (!completion) {
     throw new ApiError(
       502,
-      err?.message || "OpenAI generation failed",
+      lastError?.message || "AI generation failed across available models",
       "AI_GENERATION_FAILED"
     );
   }
 
-  const rawText = completion.choices?.[0]?.message?.content;
-  if (!rawText) {
-    throw new ApiError(502, "Empty AI response", "AI_INVALID_RESPONSE");
+  const rawText =
+    completion.choices?.[0]?.message?.content ||
+    completion.choices?.[0]?.message?.reasoning ||
+    "";
+  if (!rawText || !rawText.trim()) {
+    throw new ApiError(502, "Empty AI response from provider", "AI_INVALID_RESPONSE");
   }
 
   let parsed;
   try {
-    parsed = JSON.parse(rawText);
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
   } catch {
     throw new ApiError(502, "AI response was not valid JSON", "AI_INVALID_RESPONSE");
   }

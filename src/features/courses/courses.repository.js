@@ -35,6 +35,20 @@ const findById = async (id) => {
           questions: {
             include: { options: true },
           },
+          submissions: {
+            include: {
+              trainee: {
+                select: {
+                  id: true,
+                  email: true,
+                  traineeProfile: { select: { fullName: true } },
+                },
+              },
+            },
+          },
+          _count: {
+            select: { submissions: true },
+          },
         },
       },
       enrollments: {
