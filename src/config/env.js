@@ -24,6 +24,7 @@ for (const key of required) {
 
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
+const openaiApiKey = (process.env.OPENAI_API_KEY || "").trim() || null;
 
 module.exports = {
   port: parseInt(process.env.PORT, 10),
@@ -40,4 +41,5 @@ module.exports = {
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX, 10),
   adminEmail,
   adminPassword,
+  openaiApiKey,
 };

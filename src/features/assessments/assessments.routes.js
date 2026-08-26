@@ -11,6 +11,7 @@ const {
   submitSchema,
   paramsSchema,
   listSchema,
+  generateAiSchema,
 } = require("./assessments.validation");
 
 const router = express.Router();
@@ -22,6 +23,13 @@ router.post(
   requireRole("TRAINER", "ADMIN"),
   validate(createAssessmentSchema),
   assessmentsController.createAssessment
+);
+
+router.post(
+  "/courses/:id/assessments/generate-ai",
+  requireRole("TRAINER", "ADMIN"),
+  validate(generateAiSchema),
+  assessmentsController.generateAiQuestions
 );
 
 router.get("/assessments/:id", validate(paramsSchema), assessmentsController.getAssessment);

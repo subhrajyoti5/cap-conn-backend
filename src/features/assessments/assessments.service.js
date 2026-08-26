@@ -4,7 +4,18 @@ const { createAuditLog } = require("../../utils/auditLog");
 const notificationsRepo = require("../notifications/notifications.repository");
 const coursesRepo = require("../courses/courses.repository");
 const enrollmentsRepo = require("../enrollments/enrollments.repository");
+const resourcesRepo = require("../resources/resources.repository");
 const assessmentsRepo = require("./assessments.repository");
+const aiService = require("./ai.service");
+
+const IMAGE_MIME_RE = /^image\//i;
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
+
+const isImageResource = (resource) => {
+  if (resource.mimeType && IMAGE_MIME_RE.test(resource.mimeType)) return true;
+  const key = resource.storageKey || "";
+  return IMAGE_EXT_RE.test(key);
+};
 
 const validateQuestions = (questions) => {
   for (const q of questions) {
@@ -19,15 +30,52 @@ const validateQuestions = (questions) => {
   }
 };
 
-const createAssessment = async (data, trainerId) => {
+const createAssessment = async (data, user) => {
   const course = await coursesRepo.findById(data.courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (course.trainerId !== trainerId) {
+  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
     throw new ApiError(403, "Not course owner", "NOT_OWNER");
   }
 
   validateQuestions(data.questions);
+  const trainerId = course.trainerId;
   return assessmentsRepo.create({ ...data, trainerId, status: "DRAFT" });
+};
+
+const generateAiQuestions = async (courseId, body, user) => {
+  const course = await coursesRepo.findById(courseId);
+  if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
+  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
+    throw new ApiError(403, "Not course owner", "NOT_OWNER");
+  }
+
+  const uniqueIds = [...new Set(body.resourceIds || [])];
+  const resources = [];
+  for (const resourceId of uniqueIds) {
+    const resource = await resourcesRepo.findById(resourceId);
+    if (!resource || resource.courseId !== courseId) {
+      throw new ApiError(
+        400,
+        `Resource ${resourceId} not found on this course`,
+        "VALIDATION_ERROR"
+      );
+    }
+    if (!isImageResource(resource)) {
+      throw new ApiError(
+        400,
+        `Resource "${resource.title}" is not an image`,
+        "VALIDATION_ERROR"
+      );
+    }
+    resources.push(resource);
+  }
+
+  return aiService.generateMcqFromImages({
+    resources,
+    questionCount: body.questionCount,
+    customInstructions: body.customInstructions,
+    marksPerQuestion: body.marksPerQuestion,
+  });
 };
 
 const getAssessment = async (id, user) => {
@@ -224,6 +272,7 @@ const listSubmissions = async (id, user, query) => {
 
 module.exports = {
   createAssessment,
+  generateAiQuestions,
   getAssessment,
   updateAssessment,
   publishAssessment,

@@ -2,8 +2,17 @@ const { asyncHandler } = require("../../utils/asyncHandler");
 const assessmentsService = require("./assessments.service");
 
 const createAssessment = asyncHandler(async (req, res) => {
-  const assessment = await assessmentsService.createAssessment(req.body, req.user.id);
+  const assessment = await assessmentsService.createAssessment(req.body, req.user);
   res.status(201).json({ success: true, data: assessment });
+});
+
+const generateAiQuestions = asyncHandler(async (req, res) => {
+  const data = await assessmentsService.generateAiQuestions(
+    req.params.id,
+    req.body,
+    req.user
+  );
+  res.json({ success: true, data });
 });
 
 const getAssessment = asyncHandler(async (req, res) => {
@@ -69,6 +78,7 @@ const listSubmissions = asyncHandler(async (req, res) => {
 
 module.exports = {
   createAssessment,
+  generateAiQuestions,
   getAssessment,
   updateAssessment,
   publishAssessment,

@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Starting comprehensive database seeding...");
 
-  const defaultPassword = process.env.DEFAULT_SEED_PASSWORD || "Password@123";
+  const defaultPassword = process.env.DEFAULT_SEED_PASSWORD || "admin1234";
   const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
   // 1. Seed Users: Admin, Trainer, Trainee

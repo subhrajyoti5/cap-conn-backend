@@ -56,10 +56,23 @@ const listSchema = z.object({
   }),
 });
 
+const generateAiSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+  body: z.object({
+    resourceIds: z.array(z.string().uuid()).min(1),
+    customInstructions: z.string().max(4000).optional().nullable(),
+    questionCount: z.coerce.number().int().min(1).max(20),
+    marksPerQuestion: z.coerce.number().int().positive().optional().default(1),
+  }),
+});
+
 module.exports = {
   createAssessmentSchema,
   updateAssessmentSchema,
   submitSchema,
   paramsSchema,
   listSchema,
+  generateAiSchema,
 };
