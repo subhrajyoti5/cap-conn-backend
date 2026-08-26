@@ -25,11 +25,24 @@ router.delete(
   enrollmentsController.drop
 );
 
+router.post(
+  "/courses/:id/drop",
+  requireRole("TRAINEE"),
+  validate(paramsSchema),
+  enrollmentsController.drop
+);
+
 router.get(
   "/me/enrollments",
   requireRole("TRAINEE"),
   validate(listEnrollmentsSchema),
   enrollmentsController.listMyEnrollments
+);
+
+router.get(
+  "/courses/enrollments/pending",
+  requireRole("TRAINER", "ADMIN"),
+  enrollmentsController.listPendingEnrollments
 );
 
 router.get(

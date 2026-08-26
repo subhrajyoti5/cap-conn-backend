@@ -142,7 +142,25 @@ const removeTrainee = async (courseId, traineeId, trainerId, reason) => {
 const dropCourse = async (courseId, traineeId) => {
   const enrollment = await enrollmentsRepo.findByCourseAndTrainee(courseId, traineeId);
   if (!enrollment) throw new ApiError(404, "Enrollment not found", "NOT_FOUND");
-  return enrollmentsRepo.updateStatus(courseId, traineeId, "DROPPED");
+
+  const updated = await enrollmentsRepo.updateStatus(courseId, traineeId, "DROPPED");
+  const course = await coursesRepo.findById(courseId);
+  const trainee = await prisma.user.findUnique({ where: { id: traineeId } });
+
+  const secondaries = await prisma.courseTrainer.findMany({
+    where: { courseId },
+    select: { trainerId: true },
+  });
+  const trainerIds = Array.from(new Set([course.trainerId, ...secondaries.map((s) => s.trainerId)]));
+
+  await notificationsService.bulkCreate({
+    userIds: trainerIds,
+    type: "COURSE",
+    title: "Trainee Un-enrolled",
+    body: `${trainee?.name || trainee?.email || "A trainee"} has un-enrolled (dropped) from the course "${course.title}".`,
+  });
+
+  return updated;
 };
 
 const listMyEnrollments = async (traineeId, query) => {
@@ -157,6 +175,37 @@ const listCourseEnrollments = async (courseId, user) => {
   return enrollmentsRepo.findByCourse(courseId);
 };
 
+const listPendingEnrollmentsForTrainer = async (trainerId) => {
+  const secondary = await prisma.courseTrainer.findMany({
+    where: { trainerId },
+    select: { courseId: true },
+  });
+  const secondaryCourseIds = secondary.map((s) => s.courseId);
+
+  const courses = await prisma.course.findMany({
+    where: {
+      OR: [
+        { trainerId },
+        { id: { in: secondaryCourseIds } },
+      ],
+    },
+    select: { id: true },
+  });
+  const myCourseIds = courses.map((c) => c.id);
+
+  return prisma.enrollment.findMany({
+    where: {
+      courseId: { in: myCourseIds },
+      status: "PENDING",
+    },
+    include: {
+      course: { select: { id: true, title: true } },
+      trainee: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { enrolledAt: "desc" },
+  });
+};
+
 module.exports = {
   isCourseInstructor,
   enrollInCourse,
@@ -166,4 +215,5 @@ module.exports = {
   dropCourse,
   listMyEnrollments,
   listCourseEnrollments,
+  listPendingEnrollmentsForTrainer,
 };

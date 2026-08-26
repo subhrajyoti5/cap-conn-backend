@@ -93,8 +93,20 @@ const findTrainerProfilePublic = async (userId) => {
       trainerCompetencies: [],
     };
   }
+  const secondaryCoTrained = await prisma.courseTrainer.findMany({
+    where: { trainerId: userId },
+    select: { courseId: true },
+  });
+  const secondaryCourseIds = secondaryCoTrained.map((ct) => ct.courseId);
+
   const courses = await prisma.course.findMany({
-    where: { trainerId: userId, status: "PUBLISHED" },
+    where: {
+      OR: [
+        { trainerId: userId },
+        { id: { in: secondaryCourseIds } },
+      ],
+      status: "PUBLISHED",
+    },
     include: { subject: true, enrollments: true },
   });
   return { ...profile, courses };
@@ -102,13 +114,17 @@ const findTrainerProfilePublic = async (userId) => {
 
 const findTraineeProfilePublic = async (userId) => {
   let profile = await findTraineeProfile(userId);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, name: true, email: true, role: true },
+  });
+
   if (!profile) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.role !== "TRAINEE") return null;
+    if (!user) return null;
     profile = {
       id: "temp-profile-id",
       userId: user.id,
-      fullName: user.name || "Trainee",
+      fullName: user.name || user.email?.split("@")[0] || "Trainee",
       phone: "",
       bio: "",
       qualifications: [],
@@ -117,7 +133,26 @@ const findTraineeProfilePublic = async (userId) => {
       interests: [],
     };
   }
-  return profile;
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: { traineeId: userId, status: "ACTIVE" },
+    include: {
+      course: {
+        include: {
+          subject: true,
+          trainer: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  });
+  const courses = enrollments.map((e) => e.course).filter(Boolean);
+
+  return {
+    ...profile,
+    email: user?.email || "",
+    fullName: profile.fullName || user?.name || "Trainee",
+    courses,
+  };
 };
 
 module.exports = {
