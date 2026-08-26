@@ -24,7 +24,8 @@ const signResourceUrl = async (resource) => {
 };
 
 const findById = async (id, userId = null) => {
-  let course;
+  let course = null;
+
   try {
     course = await prisma.course.findUnique({
       where: { id },
@@ -63,38 +64,44 @@ const findById = async (id, userId = null) => {
       },
     });
   } catch (err) {
-    console.error("Prisma error querying course by id, retrying without nested submissions:", err);
-    course = await prisma.course.findUnique({
-      where: { id },
-      include: {
-        trainer: { select: { id: true, name: true, email: true, role: true } },
-        subject: true,
-        resources: true,
-        assessments: {
-          include: {
-            questions: {
-              include: { options: true },
+    console.error("Prisma error in findById full include, falling back to safe query:", err.message);
+    try {
+      course = await prisma.course.findUnique({
+        where: { id },
+        include: {
+          trainer: { select: { id: true, name: true, email: true, role: true } },
+          subject: true,
+          resources: true,
+          assessments: {
+            include: {
+              questions: {
+                include: { options: true },
+              },
             },
           },
-        },
-        enrollments: {
-          include: {
-            trainee: { select: { id: true, name: true, email: true, role: true } },
+          enrollments: {
+            include: {
+              trainee: { select: { id: true, name: true, email: true, role: true } },
+            },
           },
+          feedbacks: true,
+          trainers: true,
+          invitations: true,
         },
-        feedbacks: {
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-          },
+      });
+    } catch (err2) {
+      console.error("Prisma safe query fallback failed, using minimal query:", err2.message);
+      course = await prisma.course.findUnique({
+        where: { id },
+        include: {
+          trainer: true,
+          subject: true,
+          resources: true,
+          assessments: true,
+          enrollments: true,
         },
-        trainers: {
-          include: {
-            trainer: { select: { id: true, name: true, email: true } },
-          },
-        },
-        invitations: true,
-      },
-    });
+      });
+    }
   }
 
   if (!course) return null;
