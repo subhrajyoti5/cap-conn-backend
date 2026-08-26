@@ -34,12 +34,47 @@ const findById = async (id, userId = null) => {
         subject: true,
         resources: true,
         assessments: {
-          include: {
+          select: {
+            id: true,
+            courseId: true,
+            trainerId: true,
+            title: true,
+            description: true,
+            type: true,
+            fileUrl: true,
+            fileName: true,
+            status: true,
+            totalMarks: true,
+            deadline: true,
+            createdAt: true,
+            updatedAt: true,
             questions: {
-              include: { options: true },
+              select: {
+                id: true,
+                text: true,
+                marks: true,
+                order: true,
+                options: {
+                  select: {
+                    id: true,
+                    text: true,
+                  },
+                },
+              },
             },
             submissions: {
-              include: {
+              select: {
+                id: true,
+                assessmentId: true,
+                traineeId: true,
+                status: true,
+                score: true,
+                fileUrl: true,
+                fileName: true,
+                notes: true,
+                feedback: true,
+                gradedAt: true,
+                submittedAt: true,
                 trainee: { select: { id: true, name: true, email: true } },
               },
             },
@@ -73,9 +108,24 @@ const findById = async (id, userId = null) => {
           subject: true,
           resources: true,
           assessments: {
-            include: {
+            select: {
+              id: true,
+              courseId: true,
+              trainerId: true,
+              title: true,
+              description: true,
+              status: true,
+              totalMarks: true,
+              deadline: true,
+              createdAt: true,
               questions: {
-                include: { options: true },
+                select: {
+                  id: true,
+                  text: true,
+                  marks: true,
+                  order: true,
+                  options: true,
+                },
               },
             },
           },
@@ -97,7 +147,6 @@ const findById = async (id, userId = null) => {
           trainer: true,
           subject: true,
           resources: true,
-          assessments: true,
           enrollments: true,
         },
       });
