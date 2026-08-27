@@ -1,4 +1,4 @@
-const { prisma } = require("../../config/db");
+const { prisma } = require("../../database/prisma");
 
 const findById = async (id, includeQuestions = false) => {
   return prisma.assessment.findUnique({

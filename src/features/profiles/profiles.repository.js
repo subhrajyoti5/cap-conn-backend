@@ -107,9 +107,59 @@ const findTrainerProfilePublic = async (userId) => {
       ],
       status: "PUBLISHED",
     },
-    include: { subject: true, enrollments: true },
+    include: {
+      subject: true,
+      enrollments: true,
+      feedbacks: true,
+      trainerFeedbacks: { where: { trainerId: userId } },
+    },
   });
-  return { ...profile, courses };
+
+  const coursesWithRating = courses.map((c) => {
+    const courseRatings = c.feedbacks || [];
+    const avgCourseRating =
+      courseRatings.length > 0
+        ? Number(
+            (courseRatings.reduce((acc, f) => acc + f.rating, 0) / courseRatings.length).toFixed(1)
+          )
+        : 0;
+
+    const directTrainerRatings = c.trainerFeedbacks || [];
+    const avgDirectRating =
+      directTrainerRatings.length > 0
+        ? Number(
+            (
+              directTrainerRatings.reduce((acc, f) => acc + f.rating, 0) /
+              directTrainerRatings.length
+            ).toFixed(1)
+          )
+        : 0;
+
+    return {
+      ...c,
+      avgRating: avgDirectRating || avgCourseRating,
+      totalReviews: directTrainerRatings.length || courseRatings.length,
+    };
+  });
+
+  // Calculate overall trainer rating
+  const allTrainerFeedbacks = await prisma.trainerFeedback.findMany({
+    where: { trainerId: userId },
+  });
+  const overallCount = allTrainerFeedbacks.length;
+  const overallRating =
+    overallCount > 0
+      ? Number(
+          (allTrainerFeedbacks.reduce((acc, f) => acc + f.rating, 0) / overallCount).toFixed(1)
+        )
+      : 0;
+
+  return {
+    ...profile,
+    courses: coursesWithRating,
+    overallRating,
+    totalReviewsCount: overallCount,
+  };
 };
 
 const findTraineeProfilePublic = async (userId) => {

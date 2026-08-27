@@ -1,18 +1,37 @@
-const { z } = require("zod");
+const z = require("zod");
 
-const feedbackSchema = z.object({
+const courseFeedbackSchema = z.object({
   body: z.object({
-    courseId: z.string().uuid(),
-    rating: z.coerce.number().int().min(1).max(5),
-    comment: z.string().optional().nullable(),
+    courseId: z.string().uuid().optional(),
+    rating: z.number().int().min(1).max(5),
+    comment: z.string().max(1000).optional(),
   }),
 });
 
-const listSchema = z.object({
-  query: z.object({
-    page: z.coerce.number().min(1).default(1),
-    limit: z.coerce.number().min(1).max(100).default(20),
+const trainerFeedbackSchema = z.object({
+  body: z.object({
+    rating: z.number().int().min(1).max(5),
+    comment: z.string().max(1000).optional(),
   }),
 });
 
-module.exports = { feedbackSchema, listSchema };
+const resourceFeedbackSchema = z.object({
+  body: z.object({
+    rating: z.number().int().min(1).max(5),
+    comment: z.string().max(1000).optional(),
+  }),
+});
+
+const assessmentCommentSchema = z.object({
+  body: z.object({
+    comment: z.string().min(1).max(1000),
+    isGrievance: z.boolean().optional(),
+  }),
+});
+
+module.exports = {
+  courseFeedbackSchema,
+  trainerFeedbackSchema,
+  resourceFeedbackSchema,
+  assessmentCommentSchema,
+};

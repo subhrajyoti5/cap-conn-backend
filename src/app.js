@@ -20,6 +20,7 @@ const announcementsRoutes = require("./features/announcements/announcements.rout
 const achievementsRoutes = require("./features/achievements/achievements.routes");
 const feedbackRoutes = require("./features/feedback/feedback.routes");
 const competenciesRoutes = require("./features/competencies/competencies.routes");
+const messagesRoutes = require("./features/messages/messages.routes");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -60,6 +61,7 @@ app.use("/", announcementsRoutes);
 app.use("/", achievementsRoutes);
 app.use("/", feedbackRoutes);
 app.use("/", competenciesRoutes);
+app.use("/messages", messagesRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ success: true, data: { status: "ok" } });
