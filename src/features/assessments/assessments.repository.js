@@ -1,35 +1,38 @@
-const { prisma } = require("../../database/prisma");
+const { prisma } = require("../../config/db");
 
-const findById = async (id, includeAnswers = false) => {
+const findById = async (id, includeQuestions = false) => {
   return prisma.assessment.findUnique({
     where: { id },
     include: {
-      course: true,
-      questions: {
-        include: {
-          options: {
-            select: {
-              id: true,
-              text: true,
-              isCorrect: includeAnswers,
-            },
-          },
+      course: {
+        select: {
+          id: true,
+          title: true,
+          trainerId: true,
         },
+      },
+      questions: includeQuestions
+        ? {
+            orderBy: { order: "asc" },
+            include: {
+              options: true,
+            },
+          }
+        : false,
+      submissions: true,
+      _count: {
+        select: { submissions: true },
       },
     },
   });
 };
 
-const findByCourse = async (courseId, isStaff = false) => {
-  const where = { courseId };
-  if (!isStaff) {
-    where.status = "PUBLISHED";
-  }
-
+const findByCourse = async (courseId) => {
   return prisma.assessment.findMany({
-    where,
+    where: { courseId },
     include: {
       questions: {
+        orderBy: { order: "asc" },
         include: {
           options: true,
         },
@@ -39,6 +42,7 @@ const findByCourse = async (courseId, isStaff = false) => {
           trainee: {
             select: {
               id: true,
+              name: true,
               email: true,
               traineeProfile: {
                 select: { fullName: true },
@@ -55,22 +59,30 @@ const findByCourse = async (courseId, isStaff = false) => {
 
 const create = async (data) => {
   const { questions, ...assessmentData } = data;
-  return prisma.assessment.create({
-    data: {
-      ...assessmentData,
-      questions: {
-        create: questions.map((q) => ({
-          text: q.text,
-          explanation: q.explanation || null,
-          imageUrl: q.imageUrl || null,
-          marks: q.marks,
-          order: q.order,
-          options: {
-            create: q.options,
-          },
-        })),
+  if (questions && questions.length > 0) {
+    return prisma.assessment.create({
+      data: {
+        ...assessmentData,
+        questions: {
+          create: questions.map((q) => ({
+            text: q.text,
+            explanation: q.explanation || null,
+            imageUrl: q.imageUrl || null,
+            marks: q.marks,
+            order: q.order,
+            options: {
+              create: q.options,
+            },
+          })),
+        },
       },
-    },
+      include: {
+        questions: { include: { options: true } },
+      },
+    });
+  }
+  return prisma.assessment.create({
+    data: assessmentData,
     include: {
       questions: { include: { options: true } },
     },
@@ -126,7 +138,7 @@ const update = async (id, data) => {
       });
     }
 
-    // If submissions exist, update assessment metadata & existing questions in-place to PRESERVE all submission details
+    // If submissions exist, update assessment metadata & existing questions in-place to PRESERVE submission foreign keys
     await tx.assessment.update({
       where: { id },
       data: assessmentData,
@@ -205,28 +217,81 @@ const remove = async (id) => {
 const findSubmission = async (assessmentId, traineeId) => {
   return prisma.submission.findUnique({
     where: { assessmentId_traineeId: { assessmentId, traineeId } },
-    include: { answers: true },
+    include: {
+      answers: {
+        include: {
+          question: {
+            include: { options: true },
+          },
+          selectedOption: true,
+        },
+      },
+    },
   });
 };
 
-const createSubmission = async (data) => {
-  return prisma.submission.create({ data, include: { answers: true } });
-};
-
-const upsertAnswer = async (submissionId, questionId, selectedOptionId, tx) => {
-  const client = tx || prisma;
-  return client.answer.upsert({
-    where: { submissionId_questionId: { submissionId, questionId } },
-    create: { submissionId, questionId, selectedOptionId },
-    update: { selectedOptionId },
-  });
-};
-
-const gradeSubmission = async (submissionId, score, tx) => {
-  const client = tx || prisma;
-  return client.submission.update({
+const findSubmissionById = async (submissionId) => {
+  return prisma.submission.findUnique({
     where: { id: submissionId },
-    data: { status: "GRADED", score, submittedAt: new Date() },
+    include: {
+      assessment: {
+        include: {
+          questions: {
+            include: { options: true },
+          },
+        },
+      },
+      answers: {
+        include: {
+          question: {
+            include: { options: true },
+          },
+          selectedOption: true,
+        },
+      },
+    },
+  });
+};
+
+const createSubmission = async (assessmentId, traineeId, dbClient = prisma) => {
+  return dbClient.submission.create({
+    data: {
+      assessmentId,
+      traineeId,
+      status: "IN_PROGRESS",
+    },
+  });
+};
+
+const updateSubmission = async (submissionId, data, dbClient = prisma) => {
+  return dbClient.submission.update({
+    where: { id: submissionId },
+    data,
+  });
+};
+
+const upsertAnswer = async (submissionId, questionId, selectedOptionId, dbClient = prisma) => {
+  return dbClient.answer.upsert({
+    where: {
+      submissionId_questionId: { submissionId, questionId },
+    },
+    update: { selectedOptionId },
+    create: {
+      submissionId,
+      questionId,
+      selectedOptionId,
+    },
+  });
+};
+
+const gradeSubmission = async (submissionId, score, dbClient = prisma) => {
+  return dbClient.submission.update({
+    where: { id: submissionId },
+    data: {
+      score,
+      status: "SUBMITTED",
+      submittedAt: new Date(),
+    },
   });
 };
 
@@ -239,6 +304,7 @@ const findSubmissionsByAssessment = async (assessmentId, { page = 1, limit = 100
         trainee: {
           select: {
             id: true,
+            name: true,
             email: true,
             traineeProfile: {
               select: { fullName: true },
@@ -273,7 +339,9 @@ module.exports = {
   publish,
   remove,
   findSubmission,
+  findSubmissionById,
   createSubmission,
+  updateSubmission,
   upsertAnswer,
   gradeSubmission,
   findSubmissionsByAssessment,

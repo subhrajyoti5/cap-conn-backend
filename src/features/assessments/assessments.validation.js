@@ -6,6 +6,7 @@ const optionSchema = z.object({
 });
 
 const questionSchema = z.object({
+  id: z.string().uuid().optional(),
   text: z.string().min(1),
   explanation: z.string().optional().nullable(),
   imageUrl: z.string().optional().nullable(),
@@ -19,12 +20,15 @@ const createAssessmentSchema = z.object({
     courseId: z.string().uuid(),
     title: z.string().min(1),
     description: z.string().optional().nullable(),
+    type: z.enum(["MCQ", "DOCUMENT"]).optional().default("MCQ"),
+    fileUrl: z.string().optional().nullable(),
+    fileName: z.string().optional().nullable(),
     evaluationMode: z.enum(["INSTANT", "MANUAL_RELEASE"]).optional().default("INSTANT"),
     resultsReleased: z.boolean().optional(),
     totalMarks: z.coerce.number().int().positive(),
     startTime: z.coerce.date().optional(),
     deadline: z.coerce.date(),
-    questions: z.array(questionSchema).min(1),
+    questions: z.array(questionSchema).optional(),
   }),
 });
 
@@ -32,6 +36,9 @@ const updateAssessmentSchema = z.object({
   body: z.object({
     title: z.string().min(1).optional(),
     description: z.string().optional().nullable(),
+    type: z.enum(["MCQ", "DOCUMENT"]).optional(),
+    fileUrl: z.string().optional().nullable(),
+    fileName: z.string().optional().nullable(),
     evaluationMode: z.enum(["INSTANT", "MANUAL_RELEASE"]).optional(),
     resultsReleased: z.boolean().optional(),
     totalMarks: z.coerce.number().int().positive().optional(),
@@ -53,6 +60,34 @@ const submitSchema = z.object({
   }),
 });
 
+const submitDocumentSchema = z.object({
+  body: z.object({
+    fileUrl: z.string().min(1),
+    fileName: z.string().min(1),
+    notes: z.string().max(2000).optional().nullable(),
+  }),
+});
+
+const gradeSubmissionSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+    submissionId: z.string().uuid(),
+  }),
+  body: z.object({
+    score: z.coerce.number().int().min(0),
+    feedback: z.string().max(4000).optional().nullable(),
+  }),
+});
+
+const uploadUrlSchema = z.object({
+  body: z.object({
+    courseId: z.string().uuid(),
+    fileName: z.string().min(1),
+    mimeType: z.string().min(1),
+    sizeBytes: z.coerce.number().int().positive().optional(),
+  }),
+});
+
 const paramsSchema = z.object({
   params: z.object({
     id: z.string().uuid(),
@@ -61,20 +96,17 @@ const paramsSchema = z.object({
 
 const listSchema = z.object({
   query: z.object({
-    page: z.coerce.number().min(1).default(1),
-    limit: z.coerce.number().min(1).max(100).default(20),
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().max(100).optional().default(10),
   }),
 });
 
 const generateAiSchema = z.object({
-  params: z.object({
-    id: z.string().uuid(),
-  }),
   body: z.object({
-    resourceIds: z.array(z.string().uuid()).optional().default([]),
-    customInstructions: z.string().max(4000).optional().nullable(),
-    theoryText: z.string().max(10000).optional().nullable(),
-    questionCount: z.coerce.number().int().min(1).max(20),
+    resourceIds: z.array(z.string().uuid()).optional(),
+    customInstructions: z.string().max(2000).optional(),
+    theoryText: z.string().max(10000).optional(),
+    questionCount: z.coerce.number().int().min(1).max(20).optional().default(5),
     marksPerQuestion: z.coerce.number().int().positive().optional().default(1),
   }),
 });
@@ -83,6 +115,9 @@ module.exports = {
   createAssessmentSchema,
   updateAssessmentSchema,
   submitSchema,
+  submitDocumentSchema,
+  gradeSubmissionSchema,
+  uploadUrlSchema,
   paramsSchema,
   listSchema,
   generateAiSchema,

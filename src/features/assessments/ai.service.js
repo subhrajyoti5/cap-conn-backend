@@ -53,25 +53,32 @@ const resolveImageUrl = async (resource) => {
   return getSignedUrl(r2Client, command, { expiresIn: DOWNLOAD_TTL_SECONDS });
 };
 
-const SYSTEM_PROMPT = `You are an expert assessment writer. Generate multiple-choice questions from the provided course images and instructions.
+const SYSTEM_PROMPT = `You are an expert assessment writer. Generate multiple-choice questions from the provided instructions, topics, theory text, and/or course images.
 Rules:
 - Return ONLY valid JSON matching the schema.
 - Each question must have exactly 4 options and exactly one correct option (isCorrect: true).
-- Questions must be answerable from the image content and/or instructions.
+- Questions must be clear, educational, and strictly relevant to the subject matter.
 - Include a short explanation for each question.
 - Do not wrap the JSON in markdown fences.`;
 
-const buildUserText = ({ questionCount, customInstructions, theoryText, marks }) => {
+const buildUserText = ({ questionCount, customInstructions, theoryText, marks, hasImages }) => {
   const total = questionCount + OVERGENERATE;
-  return [
+  const sections = [
     `Generate exactly ${total} MCQ questions (requested ${questionCount} + ${OVERGENERATE} extras for curation).`,
     `Default marks per question: ${marks}.`,
-    theoryText?.trim()
-      ? `Theory / Study Material Provided:\n${theoryText.trim()}`
-      : "",
-    customInstructions?.trim()
-      ? `Additional trainer instructions:\n${customInstructions.trim()}`
-      : "No extra instructions.",
+  ];
+
+  if (theoryText?.trim()) {
+    sections.push(`Reference Material / Theory Text:\n${theoryText.trim()}`);
+  }
+
+  if (customInstructions?.trim()) {
+    sections.push(`Topic / Trainer Instructions:\n${customInstructions.trim()}`);
+  } else if (!hasImages && !theoryText?.trim()) {
+    sections.push(`Topic / Trainer Instructions:\nGeneral knowledge questions appropriate for this course level.`);
+  }
+
+  sections.push(
     "",
     "Respond with JSON of this exact shape:",
     JSON.stringify({
@@ -88,8 +95,10 @@ const buildUserText = ({ questionCount, customInstructions, theoryText, marks })
           explanation: "Why B is correct",
         },
       ],
-    }),
-  ].filter(Boolean).join("\n");
+    })
+  );
+
+  return sections.join("\n");
 };
 
 const normalizeQuestions = (raw, marks) => {
@@ -161,27 +170,33 @@ const generateMcqFromImages = async ({
   const imageUrls = [];
   if (Array.isArray(resources) && resources.length > 0) {
     for (const resource of resources) {
-      const url = await resolveImageUrl(resource);
-      imageUrls.push(url);
+      if (resource) {
+        const url = await resolveImageUrl(resource);
+        imageUrls.push(url);
+      }
     }
   }
 
-  const promptText = buildUserText({
+  const userText = buildUserText({
     questionCount: count,
     customInstructions,
     theoryText,
     marks,
+    hasImages: imageUrls.length > 0,
   });
 
-  const content = imageUrls.length > 0
-    ? [
-        { type: "text", text: promptText },
-        ...imageUrls.map((url) => ({
-          type: "image_url",
-          image_url: { url, detail: "high" },
-        })),
-      ]
-    : promptText;
+  let content;
+  if (imageUrls.length > 0) {
+    content = [
+      { type: "text", text: userText },
+      ...imageUrls.map((url) => ({
+        type: "image_url",
+        image_url: { url, detail: "high" },
+      })),
+    ];
+  } else {
+    content = userText;
+  }
 
   let completion;
   const isOpenRouter = typeof openaiBaseUrl === "string" && openaiBaseUrl.includes("openrouter");

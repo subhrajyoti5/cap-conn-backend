@@ -7,7 +7,7 @@ const listCourses = asyncHandler(async (req, res) => {
 });
 
 const getCourse = asyncHandler(async (req, res) => {
-  const course = await coursesService.getCourse(req.params.id);
+  const course = await coursesService.getCourse(req.params.id, req.user);
   res.json({ success: true, data: course });
 });
 

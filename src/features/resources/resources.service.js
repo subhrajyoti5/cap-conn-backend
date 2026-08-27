@@ -80,7 +80,7 @@ const getResource = async (id, user) => {
       expiresIn: DOWNLOAD_TTL_SECONDS,
     });
   } catch (err) {
-    console.warn("R2 presigned download URL generation failed (local credentials placeholder):", err.message);
+    console.warn("R2 presigned download URL generation failed:", err.message);
   }
 
   return { resource, downloadUrl };

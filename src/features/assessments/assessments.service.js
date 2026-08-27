@@ -1,3 +1,8 @@
+const { PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { randomUUID } = require("crypto");
+const { r2Client } = require("../../config/r2");
+const { r2Bucket } = require("../../config/env");
 const { prisma } = require("../../database/prisma");
 const { ApiError } = require("../../utils/ApiError");
 const { createAuditLog } = require("../../utils/auditLog");
@@ -18,8 +23,9 @@ const isImageResource = (resource) => {
 };
 
 const validateQuestions = (questions) => {
+  if (!questions || !questions.length) return;
   for (const q of questions) {
-    const correctCount = q.options.filter((o) => o.isCorrect).length;
+    const correctCount = (q.options || []).filter((o) => o.isCorrect).length;
     if (correctCount !== 1) {
       throw new ApiError(
         400,
@@ -49,6 +55,38 @@ const notifyEnrolledTrainees = async (assessment, tx) => {
   }
 };
 
+const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) => {
+  const course = await coursesRepo.findById(courseId);
+  if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
+
+  if (user.role === "TRAINEE") {
+    const enrollment = await enrollmentsRepo.findByCourseAndTrainee(courseId, user.id);
+    if (!enrollment || enrollment.status !== "ACTIVE") {
+      throw new ApiError(403, "Not actively enrolled in course", "INSUFFICIENT_ROLE");
+    }
+  } else if (user.role !== "ADMIN" && course.trainerId !== user.id) {
+    throw new ApiError(403, "Not course owner", "NOT_OWNER");
+  }
+
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  if (sizeBytes && sizeBytes > maxSize) {
+    throw new ApiError(400, `File exceeds max size of 50MB`, "VALIDATION_ERROR");
+  }
+
+  const storageKey = `assessments/${courseId}/${user.id}/${randomUUID()}-${fileName}`;
+  const command = new PutObjectCommand({
+    Bucket: r2Bucket,
+    Key: storageKey,
+    ContentType: mimeType,
+  });
+
+  const uploadUrl = await getSignedUrl(r2Client, command, {
+    expiresIn: 3600,
+  });
+
+  return { uploadUrl, storageKey };
+};
+
 const createAssessment = async (data, user) => {
   const course = await coursesRepo.findById(data.courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
@@ -56,7 +94,13 @@ const createAssessment = async (data, user) => {
     throw new ApiError(403, "Not course owner", "NOT_OWNER");
   }
 
-  validateQuestions(data.questions);
+  if (data.type === "MCQ" || (!data.type && data.questions?.length)) {
+    if (!data.questions || !data.questions.length) {
+      throw new ApiError(400, "MCQ assessment requires at least one question", "VALIDATION_ERROR");
+    }
+    validateQuestions(data.questions);
+  }
+
   const trainerId = course.trainerId;
   const created = await assessmentsRepo.create({ ...data, trainerId, status: data.status || "DRAFT" });
 
@@ -113,6 +157,9 @@ const getAssessment = async (id, user) => {
     if (!enrollment || enrollment.status !== "ACTIVE") {
       throw new ApiError(403, "Not enrolled", "INSUFFICIENT_ROLE");
     }
+
+    const submission = await assessmentsRepo.findSubmission(id, user.id);
+    return { ...assessment, mySubmission: submission || null };
   }
 
   return assessment;
@@ -134,6 +181,24 @@ const updateAssessment = async (id, data, user) => {
     await notifyEnrolledTrainees(updated);
   }
   return updated;
+};
+
+const deleteAssessment = async (id, user) => {
+  const assessment = await assessmentsRepo.findById(id, true);
+  if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
+  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
+    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
+  }
+
+  await assessmentsRepo.remove(id);
+  await createAuditLog(
+    user.id,
+    "ASSESSMENT_DELETED",
+    "ASSESSMENT",
+    id,
+    null
+  );
+  return { deleted: true };
 };
 
 const publishAssessment = async (id, user) => {
@@ -178,7 +243,17 @@ const listCourseAssessments = async (courseId, user) => {
   const isStaff = user.role === "ADMIN" || course.trainerId === user.id;
   const assessments = await assessmentsRepo.findByCourse(courseId, isStaff);
   if (user.role === "TRAINEE") {
-    return assessments.filter((a) => a.status === "PUBLISHED");
+    const published = assessments.filter((a) => a.status === "PUBLISHED");
+    const enriched = await Promise.all(
+      published.map(async (a) => {
+        const sub = await assessmentsRepo.findSubmission(a.id, user.id);
+        return {
+          ...a,
+          submission: sub || null,
+        };
+      })
+    );
+    return enriched;
   }
   return assessments;
 };
@@ -192,7 +267,7 @@ const startAssessment = async (id, traineeId) => {
   if (assessment.startTime && new Date() < new Date(assessment.startTime)) {
     throw new ApiError(403, "Assessment has not started yet (Upcoming)", "ASSESSMENT_UPCOMING");
   }
-  if (new Date() > assessment.deadline) {
+  if (new Date() > new Date(assessment.deadline)) {
     throw new ApiError(403, "Assessment deadline passed", "ASSESSMENT_CLOSED");
   }
 
@@ -218,26 +293,30 @@ const submitAssessment = async (id, traineeId, answers) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
 
-  if (new Date() > assessment.deadline) {
+  if (new Date() > new Date(assessment.deadline)) {
     throw new ApiError(403, "Assessment deadline passed", "ASSESSMENT_CLOSED");
   }
 
-  const submission = await assessmentsRepo.findSubmission(id, traineeId);
-  if (!submission) {
-    throw new ApiError(404, "Submission not found", "NOT_FOUND");
-  }
-  if (submission.status === "GRADED") {
+  const existing = await assessmentsRepo.findSubmission(id, traineeId);
+  if (existing && existing.status === "SUBMITTED") {
     throw new ApiError(409, "Already submitted", "CONFLICT");
   }
 
   return prisma.$transaction(async (tx) => {
-    for (const { questionId, selectedOptionId } of answers) {
-      await assessmentsRepo.upsertAnswer(
-        submission.id,
-        questionId,
-        selectedOptionId,
-        tx
-      );
+    let submission = existing;
+    if (!submission) {
+      submission = await assessmentsRepo.createSubmission(id, traineeId, tx);
+    }
+
+    if (answers && answers.length) {
+      for (const ans of answers) {
+        await assessmentsRepo.upsertAnswer(
+          submission.id,
+          ans.questionId,
+          ans.selectedOptionId,
+          tx
+        );
+      }
     }
 
     let score = 0;
@@ -308,16 +387,8 @@ const listSubmissions = async (id, user, query) => {
   return assessmentsRepo.findSubmissionsByAssessment(id, query);
 };
 
-const deleteAssessment = async (id, user) => {
-  const assessment = await assessmentsRepo.findById(id, true);
-  if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
-    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
-  }
-  return assessmentsRepo.remove(id);
-};
-
 module.exports = {
+  getUploadUrl,
   createAssessment,
   generateAiQuestions,
   getAssessment,
