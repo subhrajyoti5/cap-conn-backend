@@ -63,10 +63,10 @@ const getTrainerDashboard = async (trainerId) => {
         _count: { status: true },
       }),
       prisma.submission.count({
-        where: { status: "SUBMITTED", assessment: { trainerId } },
+        where: { status: "SUBMITTED", assessment: { course: { trainerId } } },
       }),
       prisma.submission.aggregate({
-        where: { status: "GRADED", assessment: { trainerId } },
+        where: { status: "GRADED", assessment: { course: { trainerId } } },
         _avg: { score: true },
       }),
       prisma.feedback.findMany({
