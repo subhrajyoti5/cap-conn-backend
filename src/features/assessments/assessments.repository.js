@@ -1,6 +1,6 @@
 const { prisma } = require("../../database/prisma");
 
-const findById = async (id, includeQuestions = false) => {
+const findById = async (id, includeAnswers = false) => {
   return prisma.assessment.findUnique({
     where: { id },
     include: {
@@ -11,14 +11,18 @@ const findById = async (id, includeQuestions = false) => {
           trainerId: true,
         },
       },
-      questions: includeQuestions
-        ? {
-            orderBy: { order: "asc" },
-            include: {
-              options: true,
+      questions: {
+        orderBy: { order: "asc" },
+        include: {
+          options: {
+            select: {
+              id: true,
+              text: true,
+              isCorrect: includeAnswers,
             },
-          }
-        : false,
+          },
+        },
+      },
       submissions: true,
       _count: {
         select: { submissions: true },
@@ -50,7 +54,7 @@ const findByCourse = async (courseId) => {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { startedAt: "desc" },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -322,7 +326,7 @@ const findSubmissionsByAssessment = async (assessmentId, { page = 1, limit = 100
           },
         },
       },
-      orderBy: { submittedAt: "desc" },
+      orderBy: { startedAt: "desc" },
       skip,
       take: limit,
     }),

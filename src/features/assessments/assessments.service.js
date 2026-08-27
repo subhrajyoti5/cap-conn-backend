@@ -364,6 +364,29 @@ const getResult = async (id, user) => {
         "RESULTS_PENDING_RELEASE"
       );
     }
+
+    const canViewDetailedAnswers =
+      assessment.evaluationMode === "INSTANT" ||
+      assessment.resultsReleased === true;
+
+    if (!canViewDetailedAnswers) {
+      return {
+        assessment: {
+          id: assessment.id,
+          title: assessment.title,
+          totalMarks: assessment.totalMarks,
+          evaluationMode: assessment.evaluationMode,
+          resultsReleased: false,
+        },
+        submission: {
+          id: submission.id,
+          status: submission.status,
+          score: null, // Hidden until released
+          submittedAt: submission.submittedAt,
+        },
+      };
+    }
+
     return { assessment, submission };
   }
 
