@@ -34,36 +34,53 @@ const findConversations = async (userId) => {
     }
   }
 
-  // Check if non-admin user has any admin conversation. If not, pin default Admin Support chat
+  // Ensure default contacts for non-admins and admins
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true },
   });
 
-  if (currentUser && currentUser.role !== "ADMIN") {
-    const hasAdminConv = Array.from(conversationsMap.values()).some(
-      (c) => c.partner?.role === "ADMIN"
-    );
+  if (currentUser) {
+    if (currentUser.role !== "ADMIN") {
+      // For Trainees and Trainers: ensure Admin Support is present by default
+      const hasAdminConv = Array.from(conversationsMap.values()).some(
+        (c) => c.partner?.role === "ADMIN"
+      );
 
-    if (!hasAdminConv) {
-      const defaultAdmin = await prisma.user.findFirst({
-        where: { role: "ADMIN", status: "APPROVED" },
-        select: { id: true, name: true, email: true, role: true },
+      if (!hasAdminConv) {
+        const defaultAdmin = await prisma.user.findFirst({
+          where: { role: "ADMIN", status: "APPROVED" },
+          select: { id: true, name: true, email: true, role: true },
+        });
+
+        if (defaultAdmin) {
+          conversationsMap.set(defaultAdmin.id, {
+            partner: {
+              ...defaultAdmin,
+              name: defaultAdmin.name || "Organization Admin Support",
+            },
+            lastMessage: null,
+            unreadCount: 0,
+          });
+        }
+      }
+    } else if (currentUser.role === "ADMIN") {
+      // For Admins: ensure all approved Trainers are present by default instead of an empty list
+      const trainers = await prisma.user.findMany({
+        where: { role: "TRAINER", status: "APPROVED", id: { not: userId } },
+        select: { id: true, name: true, email: true, role: true, createdAt: true },
+        orderBy: { name: "asc" },
       });
 
-      if (defaultAdmin) {
-        conversationsMap.set(defaultAdmin.id, {
-          partner: {
-            ...defaultAdmin,
-            name: defaultAdmin.name || "Organization Admin Support",
-          },
-          lastMessage: {
-            content: "⚠️ System Notice: Admin Support Channel ready for critical escalations.",
-            createdAt: new Date(),
-          },
-          unreadCount: 0,
-        });
-      }
+      trainers.forEach((tr) => {
+        if (!conversationsMap.has(tr.id)) {
+          conversationsMap.set(tr.id, {
+            partner: tr,
+            lastMessage: null,
+            unreadCount: 0,
+          });
+        }
+      });
     }
   }
 

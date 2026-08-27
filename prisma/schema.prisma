@@ -497,11 +497,10 @@ model ResourceFeedback {
   resource   LearningResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
   userId     String
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rating     Int
+  rating     Int              @default(5)
   comment    String?
   createdAt  DateTime         @default(now())
 
-  @@unique([resourceId, userId])
   @@map("resource_feedback")
 }
 

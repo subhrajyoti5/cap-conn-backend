@@ -36,6 +36,12 @@ const upsertCourseFeedback = async (data) => {
   });
 };
 
+const deleteCourseFeedback = async (courseId, userId) => {
+  return prisma.feedback.deleteMany({
+    where: { courseId, userId },
+  });
+};
+
 const upsertTrainerFeedback = async (data) => {
   return prisma.trainerFeedback.upsert({
     where: {
@@ -47,6 +53,12 @@ const upsertTrainerFeedback = async (data) => {
     },
     create: data,
     update: { rating: data.rating, comment: data.comment },
+  });
+};
+
+const deleteTrainerFeedback = async (courseId, trainerId, traineeId) => {
+  return prisma.trainerFeedback.deleteMany({
+    where: { courseId, trainerId, traineeId },
   });
 };
 
@@ -80,19 +92,25 @@ const findTrainerOverallRating = async (trainerId) => {
   return { avgRating, totalCount };
 };
 
-const upsertResourceFeedback = async (data) => {
-  return prisma.resourceFeedback.upsert({
-    where: {
-      resourceId_userId: {
-        resourceId: data.resourceId,
-        userId: data.userId,
-      },
-    },
-    create: data,
-    update: { rating: data.rating, comment: data.comment },
+const createResourceFeedback = async (data) => {
+  return prisma.resourceFeedback.create({
+    data,
     include: {
       user: { select: { id: true, name: true, email: true } },
     },
+  });
+};
+
+const updateResourceFeedback = async (id, userId, data) => {
+  return prisma.resourceFeedback.updateMany({
+    where: { id, userId },
+    data: { rating: data.rating, comment: data.comment },
+  });
+};
+
+const deleteResourceFeedback = async (id, userId) => {
+  return prisma.resourceFeedback.deleteMany({
+    where: { id, userId },
   });
 };
 
@@ -121,6 +139,19 @@ const createAssessmentComment = async (data) => {
   });
 };
 
+const updateAssessmentComment = async (id, userId, data) => {
+  return prisma.assessmentComment.updateMany({
+    where: { id, userId },
+    data: { comment: data.comment, isGrievance: data.isGrievance },
+  });
+};
+
+const deleteAssessmentComment = async (id, userId) => {
+  return prisma.assessmentComment.deleteMany({
+    where: { id, userId },
+  });
+};
+
 const findAssessmentComments = async (assessmentId) => {
   return prisma.assessmentComment.findMany({
     where: { assessmentId },
@@ -134,11 +165,17 @@ const findAssessmentComments = async (assessmentId) => {
 module.exports = {
   findCourseFeedback,
   upsertCourseFeedback,
+  deleteCourseFeedback,
   upsertTrainerFeedback,
+  deleteTrainerFeedback,
   findTrainerCourseFeedback,
   findTrainerOverallRating,
-  upsertResourceFeedback,
+  createResourceFeedback,
+  updateResourceFeedback,
+  deleteResourceFeedback,
   findResourceFeedback,
   createAssessmentComment,
+  updateAssessmentComment,
+  deleteAssessmentComment,
   findAssessmentComments,
 };
