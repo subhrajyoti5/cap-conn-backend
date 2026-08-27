@@ -63,20 +63,19 @@ const findById = async (id, userId = null) => {
               },
             },
             submissions: {
-              select: {
-                id: true,
-                assessmentId: true,
-                traineeId: true,
-                status: true,
-                score: true,
-                fileUrl: true,
-                fileName: true,
-                notes: true,
-                feedback: true,
-                gradedAt: true,
-                submittedAt: true,
-                trainee: { select: { id: true, name: true, email: true } },
+              include: {
+                trainee: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    traineeProfile: { select: { fullName: true } },
+                  },
+                },
               },
+            },
+            _count: {
+              select: { submissions: true },
             },
           },
         },

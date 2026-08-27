@@ -44,6 +44,7 @@ const updateAssessmentSchema = z.object({
     totalMarks: z.coerce.number().int().positive().optional(),
     startTime: z.coerce.date().optional(),
     deadline: z.coerce.date().optional(),
+    status: z.enum(["DRAFT", "PUBLISHED", "CLOSED"]).optional(),
     questions: z.array(questionSchema).optional(),
   }),
 });
@@ -95,20 +96,17 @@ const paramsSchema = z.object({
 
 const listSchema = z.object({
   query: z.object({
-    page: z.coerce.number().min(1).default(1),
-    limit: z.coerce.number().min(1).max(100).default(20),
+    page: z.coerce.number().int().positive().optional().default(1),
+    limit: z.coerce.number().int().positive().max(100).optional().default(10),
   }),
 });
 
 const generateAiSchema = z.object({
-  params: z.object({
-    id: z.string().uuid(),
-  }),
   body: z.object({
-    resourceIds: z.array(z.string().uuid()).optional().default([]),
-    customInstructions: z.string().max(4000).optional().nullable(),
-    theoryText: z.string().max(10000).optional().nullable(),
-    questionCount: z.coerce.number().int().min(1).max(20),
+    resourceIds: z.array(z.string().uuid()).optional(),
+    customInstructions: z.string().max(2000).optional(),
+    theoryText: z.string().max(10000).optional(),
+    questionCount: z.coerce.number().int().min(1).max(20).optional().default(5),
     marksPerQuestion: z.coerce.number().int().positive().optional().default(1),
   }),
 });

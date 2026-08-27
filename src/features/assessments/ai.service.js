@@ -1,22 +1,41 @@
-const OpenAI = require("openai");
 const { GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { r2Client } = require("../../config/r2");
-const { openaiApiKey, r2Bucket } = require("../../config/env");
+const { openaiApiKey, openaiBaseUrl, openaiModel, r2Bucket } = require("../../config/env");
 const { ApiError } = require("../../utils/ApiError");
 const { DOWNLOAD_TTL_SECONDS } = require("../resources/resources.constants");
 
 const OVERGENERATE = 5;
+let OpenAI;
 
 const getClient = () => {
-  if (!openaiApiKey) {
+  if (!OpenAI) {
+    try {
+      OpenAI = require("openai");
+    } catch (err) {
+      throw new ApiError(
+        503,
+        "openai package is not installed yet",
+        "SERVICE_UNAVAILABLE"
+      );
+    }
+  }
+  if (!openaiApiKey || openaiApiKey.includes("YOUR_OPENAI_KEY_HERE") || openaiApiKey.includes("YOUR_OPENROUTER_KEY_HERE")) {
     throw new ApiError(
       503,
-      "OPENAI_API_KEY is not configured",
+      "OPENAI_API_KEY is not configured in .env",
       "SERVICE_UNAVAILABLE"
     );
   }
-  return new OpenAI({ apiKey: openaiApiKey });
+  const options = { apiKey: openaiApiKey };
+  if (openaiBaseUrl) {
+    options.baseURL = openaiBaseUrl;
+    options.defaultHeaders = {
+      "HTTP-Referer": "http://localhost:3000",
+      "X-Title": "Capacity Connect LMS",
+    };
+  }
+  return new OpenAI(options);
 };
 
 const isExternalUrl = (key) =>
@@ -135,7 +154,7 @@ const normalizeQuestions = (raw, marks) => {
 };
 
 /**
- * Generate N+5 candidate MCQs from course image resources via gpt-4o-mini.
+ * Generate N+5 candidate MCQs from prompt, theory text, and/or image resources.
  */
 const generateMcqFromImages = async ({
   resources = [],
@@ -180,32 +199,66 @@ const generateMcqFromImages = async ({
   }
 
   let completion;
-  try {
-    completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      temperature: 0.4,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content },
-      ],
-    });
-  } catch (err) {
+  const isOpenRouter = typeof openaiBaseUrl === "string" && openaiBaseUrl.includes("openrouter");
+  const targetModel = (openaiModel || (isOpenRouter ? "openrouter/auto" : "gpt-4o-mini"))
+    .replace(/[–—]/g, "-")
+    .trim();
+
+  const candidateModels = isOpenRouter
+    ? [
+        targetModel,
+        "openrouter/auto",
+        "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "deepseek/deepseek-r1:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+      ].filter((v, i, a) => v && a.indexOf(v) === i)
+    : [targetModel, "gpt-4o-mini", "gpt-4o"].filter((v, i, a) => v && a.indexOf(v) === i);
+
+  let lastError;
+  for (const modelCandidate of candidateModels) {
+    try {
+      const params = {
+        model: modelCandidate,
+        temperature: 0.4,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content },
+        ],
+      };
+      if (!openaiBaseUrl) {
+        params.response_format = { type: "json_object" };
+      }
+      completion = await client.chat.completions.create(params);
+      if (completion?.choices?.[0]?.message) {
+        break;
+      }
+    } catch (err) {
+      lastError = err;
+      continue;
+    }
+  }
+
+  if (!completion) {
     throw new ApiError(
       502,
-      err?.message || "OpenAI generation failed",
+      lastError?.message || "AI generation failed across available models",
       "AI_GENERATION_FAILED"
     );
   }
 
-  const rawText = completion.choices?.[0]?.message?.content;
-  if (!rawText) {
-    throw new ApiError(502, "Empty AI response", "AI_INVALID_RESPONSE");
+  const rawText =
+    completion.choices?.[0]?.message?.content ||
+    completion.choices?.[0]?.message?.reasoning ||
+    "";
+  if (!rawText || !rawText.trim()) {
+    throw new ApiError(502, "Empty AI response from provider", "AI_INVALID_RESPONSE");
   }
 
   let parsed;
   try {
-    parsed = JSON.parse(rawText);
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
   } catch {
     throw new ApiError(502, "AI response was not valid JSON", "AI_INVALID_RESPONSE");
   }

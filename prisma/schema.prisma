@@ -97,6 +97,12 @@ model User {
   assessments    Assessment[]       @relation("AssessmentTrainer")
   auditLogs      AuditLog[]
   courseTrainers CourseTrainer[]
+  trainerFeedbacksGiven    TrainerFeedback[]    @relation("TrainerFeedbackTrainee")
+  trainerFeedbacksReceived TrainerFeedback[]    @relation("TrainerFeedbackTrainer")
+  resourceFeedbacks        ResourceFeedback[]
+  assessmentComments       AssessmentComment[]
+  sentDirectMessages       DirectMessage[]      @relation("SentDirectMessages")
+  receivedDirectMessages   DirectMessage[]      @relation("ReceivedDirectMessages")
 
   @@map("users")
 }
@@ -247,9 +253,10 @@ model Course {
   enrollments Enrollment[]
   resources   LearningResource[]
   assessments Assessment[]
-  feedbacks   Feedback[]
-  trainers    CourseTrainer[]
-  invitations CourseInvitation[]
+  feedbacks        Feedback[]
+  trainerFeedbacks TrainerFeedback[]
+  trainers         CourseTrainer[]
+  invitations      CourseInvitation[]
 
   @@map("courses")
 }
@@ -269,15 +276,16 @@ model Enrollment {
 }
 
 model LearningResource {
-  id         String       @id @default(uuid())
+  id         String            @id @default(uuid())
   courseId   String
-  course     Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course     Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title      String
   type       ResourceType
   storageKey String
   sizeBytes  Int?
   mimeType   String?
-  createdAt  DateTime     @default(now())
+  createdAt  DateTime          @default(now())
+  feedbacks  ResourceFeedback[]
 
   @@map("learning_resources")
 }
@@ -288,27 +296,28 @@ enum EvaluationMode {
 }
 
 model Assessment {
-  id              String           @id @default(uuid())
+  id              String            @id @default(uuid())
   courseId        String
-  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   trainerId       String
-  trainer         User             @relation("AssessmentTrainer", fields: [trainerId], references: [id])
+  trainer         User              @relation("AssessmentTrainer", fields: [trainerId], references: [id])
   title           String
   description     String?
-  type            AssessmentType   @default(MCQ)
+  type            AssessmentType    @default(MCQ)
   fileUrl         String?
   fileName        String?
-  status          AssessmentStatus @default(DRAFT)
-  evaluationMode  EvaluationMode   @default(INSTANT)
-  resultsReleased Boolean          @default(true)
+  status          AssessmentStatus  @default(DRAFT)
+  evaluationMode  EvaluationMode    @default(INSTANT)
+  resultsReleased Boolean           @default(true)
   totalMarks      Int
-  startTime       DateTime         @default(now())
+  startTime       DateTime          @default(now())
   deadline        DateTime
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   questions   Question[]
   submissions Submission[]
+  comments    AssessmentComment[]
 
   @@map("assessments")
 }
@@ -464,4 +473,61 @@ model CourseInvitation {
 
   @@unique([courseId, email])
   @@map("course_invitations")
+}
+
+model TrainerFeedback {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  trainerId String
+  trainer   User     @relation("TrainerFeedbackTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+  traineeId String
+  trainee   User     @relation("TrainerFeedbackTrainee", fields: [traineeId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([courseId, trainerId, traineeId])
+  @@map("trainer_feedback")
+}
+
+model ResourceFeedback {
+  id         String           @id @default(uuid())
+  resourceId String
+  resource   LearningResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating     Int
+  comment    String?
+  createdAt  DateTime         @default(now())
+
+  @@unique([resourceId, userId])
+  @@map("resource_feedback")
+}
+
+model AssessmentComment {
+  id           String     @id @default(uuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment      String
+  isGrievance  Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  @@map("assessment_comments")
+}
+
+model DirectMessage {
+  id         String   @id @default(uuid())
+  senderId   String
+  sender     User     @relation("SentDirectMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("ReceivedDirectMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([senderId, receiverId])
+  @@map("direct_messages")
 }

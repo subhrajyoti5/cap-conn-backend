@@ -1,5 +1,5 @@
 require("dotenv").config();
-// Trigger watcher reload
+// Trigger watcher reload with gemini-2.0-flash-lite free model
 
 const required = [
   "PORT",
@@ -25,6 +25,8 @@ for (const key of required) {
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
 const openaiApiKey = (process.env.OPENAI_API_KEY || "").trim() || null;
+const openaiBaseUrl = (process.env.OPENAI_BASE_URL || "").trim() || null;
+const openaiModel = (process.env.OPENAI_MODEL || "").trim() || "gpt-4o-mini";
 
 module.exports = {
   port: parseInt(process.env.PORT, 10),
@@ -42,4 +44,6 @@ module.exports = {
   adminEmail,
   adminPassword,
   openaiApiKey,
+  openaiBaseUrl,
+  openaiModel,
 };
