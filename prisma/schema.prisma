@@ -295,12 +295,9 @@ model Assessment {
   trainer         User             @relation("AssessmentTrainer", fields: [trainerId], references: [id])
   title           String
   description     String?
-<<<<<<< HEAD
-=======
   type            AssessmentType   @default(MCQ)
   fileUrl         String?
   fileName        String?
->>>>>>> upstream/master
   status          AssessmentStatus @default(DRAFT)
   evaluationMode  EvaluationMode   @default(INSTANT)
   resultsReleased Boolean          @default(true)
