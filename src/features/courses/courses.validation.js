@@ -13,7 +13,7 @@ const updateCourseSchema = z.object({
     title: z.string().min(1).optional(),
     description: z.string().min(1).optional(),
     subjectId: z.string().uuid().optional(),
-    status: z.enum(["DRAFT", "PUBLISHED", "ACTIVE", "COMPLETED", "ARCHIVED"]).optional(),
+    status: z.enum(["DRAFT", "PUBLISHED", "ACTIVE", "COMPLETED", "ARCHIVED", "SUSPENDED"]).optional(),
   }),
 });
 
@@ -21,7 +21,7 @@ const listCoursesSchema = z.object({
   query: z.object({
     subjectId: z.string().uuid().optional(),
     trainerId: z.string().uuid().optional(),
-    status: z.enum(["DRAFT", "PUBLISHED", "ACTIVE", "COMPLETED", "ARCHIVED"]).optional(),
+    status: z.enum(["DRAFT", "PUBLISHED", "ACTIVE", "COMPLETED", "ARCHIVED", "SUSPENDED"]).optional(),
     search: z.string().optional(),
     page: z.coerce.number().min(1).default(1),
     limit: z.coerce.number().min(1).max(100).default(20),

@@ -22,7 +22,7 @@ const updateCourse = asyncHandler(async (req, res) => {
 });
 
 const deleteCourse = asyncHandler(async (req, res) => {
-  await coursesService.deleteCourse(req.params.id);
+  await coursesService.deleteCourse(req.params.id, req.user);
   res.json({ success: true, data: { deleted: true } });
 });
 

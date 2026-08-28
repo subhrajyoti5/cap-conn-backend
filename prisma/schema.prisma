@@ -26,6 +26,7 @@ enum CourseStatus {
   ACTIVE
   COMPLETED
   ARCHIVED
+  SUSPENDED
 }
 
 enum EnrollmentStatus {
