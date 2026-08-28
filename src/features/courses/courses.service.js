@@ -229,6 +229,17 @@ const listPendingInvitations = async (userId) => {
   });
 };
 
+const reorderFeaturedCourses = async (courseOrders, user) => {
+  if (user.role !== "ADMIN") {
+    throw new ApiError(403, "Only administrators can reorder featured courses", "FORBIDDEN");
+  }
+  if (!Array.isArray(courseOrders)) {
+    throw new ApiError(400, "courseOrders must be an array", "BAD_REQUEST");
+  }
+  await coursesRepo.updateFeaturedOrder(courseOrders);
+  return { message: "Featured courses order updated successfully" };
+};
+
 module.exports = {
   listCourses,
   getCourse,
@@ -240,4 +251,5 @@ module.exports = {
   acceptInvitation,
   rejectInvitation,
   listPendingInvitations,
+  reorderFeaturedCourses,
 };

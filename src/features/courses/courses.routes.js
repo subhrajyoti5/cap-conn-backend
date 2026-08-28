@@ -20,6 +20,11 @@ router.use(authenticate, requireUser, requireApprovedUser);
 const enrollmentsController = require("../enrollments/enrollments.controller");
 
 router.get("/courses", validate(listCoursesSchema), coursesController.listCourses);
+router.put(
+  "/courses/reorder-featured",
+  requireRole("ADMIN"),
+  coursesController.reorderFeaturedCourses
+);
 router.get(
   "/courses/invitations/pending",
   requireRole("TRAINER"),
