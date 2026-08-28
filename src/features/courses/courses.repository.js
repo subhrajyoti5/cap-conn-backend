@@ -188,16 +188,22 @@ const findById = async (id, userId = null) => {
   return course;
 };
 
-const findCourses = async ({ subjectId, trainerId, status, search, page, limit }) => {
+const findCourses = async ({ subjectId, trainerId, status, isFeatured, search, page, limit, sort }) => {
   const where = {};
   if (subjectId) where.subjectId = subjectId;
   if (trainerId) where.trainerId = trainerId;
   if (status) where.status = status;
+  if (typeof isFeatured === "boolean") where.isFeatured = isFeatured;
   if (search) {
     where.OR = [
       { title: { contains: search, mode: "insensitive" } },
       { description: { contains: search, mode: "insensitive" } },
     ];
+  }
+
+  let orderBy = { createdAt: "desc" };
+  if (sort === "featured") {
+    orderBy = [{ featuredOrder: "asc" }, { createdAt: "desc" }];
   }
 
   const skip = (page - 1) * limit;
@@ -214,7 +220,7 @@ const findCourses = async ({ subjectId, trainerId, status, search, page, limit }
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy,
       skip,
       take: limit,
     }),
@@ -232,6 +238,19 @@ const update = async (id, data) => {
   return prisma.course.update({ where: { id }, data });
 };
 
+const updateFeaturedOrder = async (courseOrders) => {
+  const updates = courseOrders.map((co) =>
+    prisma.course.update({
+      where: { id: co.id },
+      data: {
+        featuredOrder: co.featuredOrder,
+        ...(typeof co.isFeatured === "boolean" ? { isFeatured: co.isFeatured } : {}),
+      },
+    })
+  );
+  return prisma.$transaction(updates);
+};
+
 const remove = async (id) => {
   return prisma.course.delete({ where: { id } });
 };
@@ -245,6 +264,7 @@ module.exports = {
   findCourses,
   create,
   update,
+  updateFeaturedOrder,
   remove,
   countEnrollments,
 };

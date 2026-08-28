@@ -248,6 +248,8 @@ model Course {
   subjectId   String
   subject     Subject      @relation(fields: [subjectId], references: [id])
   status      CourseStatus @default(DRAFT)
+  isFeatured  Boolean      @default(true)
+  featuredOrder Int        @default(0)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 

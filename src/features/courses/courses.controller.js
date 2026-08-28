@@ -55,6 +55,11 @@ const listPendingInvitations = asyncHandler(async (req, res) => {
   res.json({ success: true, data: invitations });
 });
 
+const reorderFeaturedCourses = asyncHandler(async (req, res) => {
+  const result = await coursesService.reorderFeaturedCourses(req.body.courseOrders, req.user);
+  res.json({ success: true, ...result });
+});
+
 module.exports = {
   listCourses,
   getCourse,
@@ -66,4 +71,5 @@ module.exports = {
   acceptInvitation,
   rejectInvitation,
   listPendingInvitations,
+  reorderFeaturedCourses,
 };

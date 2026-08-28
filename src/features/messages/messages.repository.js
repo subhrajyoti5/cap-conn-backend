@@ -49,7 +49,7 @@ const findConversations = async (userId) => {
 
       if (!hasAdminConv) {
         const defaultAdmin = await prisma.user.findFirst({
-          where: { role: "ADMIN", status: "APPROVED" },
+          where: { role: "ADMIN", status: { not: "SUSPENDED" } },
           select: { id: true, name: true, email: true, role: true },
         });
 
