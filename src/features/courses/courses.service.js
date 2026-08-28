@@ -41,40 +41,51 @@ const updateCourse = async (id, data) => {
 
   const updated = await coursesRepo.update(id, data);
 
-  const trainees = await prisma.enrollment.findMany({
-    where: { courseId: id, status: "ACTIVE" },
-    select: { traineeId: true },
-  });
   const secondaries = await prisma.courseTrainer.findMany({
     where: { courseId: id },
     select: { trainerId: true },
   });
+  const trainerIds = Array.from(new Set([course.trainerId, ...secondaries.map((s) => s.trainerId)]));
 
-  const recipientIds = [
-    course.trainerId,
-    ...secondaries.map((s) => s.trainerId),
-    ...trainees.map((t) => t.traineeId),
-  ];
-
-  if (recipientIds.length > 0) {
-    await notificationsService.bulkCreate({
-      userIds: recipientIds,
-      type: "COURSE",
-      title: "Course Details Updated",
-      body: `The details for course "${course.title}" have been updated by the instructor.`,
+  if (data.status === "SUSPENDED") {
+    if (trainerIds.length > 0) {
+      await notificationsService.bulkCreate({
+        userIds: trainerIds,
+        type: "COURSE",
+        title: "Course Suspended by Admin",
+        body: `Your course "${course.title}" has been suspended by the platform administrator. Please wait for further actions or communication from the admin.`,
+      });
+    }
+  } else {
+    const trainees = await prisma.enrollment.findMany({
+      where: { courseId: id, status: "ACTIVE" },
+      select: { traineeId: true },
     });
+
+    const recipientIds = Array.from(new Set([...trainerIds, ...trainees.map((t) => t.traineeId)]));
+
+    if (recipientIds.length > 0) {
+      await notificationsService.bulkCreate({
+        userIds: recipientIds,
+        type: "COURSE",
+        title: "Course Details Updated",
+        body: `The details for course "${course.title}" have been updated by the instructor.`,
+      });
+    }
   }
 
   return updated;
 };
 
-const deleteCourse = async (id) => {
+const deleteCourse = async (id, user) => {
   const course = await coursesRepo.findById(id);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
 
-  const enrollmentCount = await coursesRepo.countEnrollments(id);
-  if (enrollmentCount > 0) {
-    throw new ApiError(409, "Cannot delete course with enrollments", "CONFLICT");
+  if (user?.role !== "ADMIN") {
+    const enrollmentCount = await coursesRepo.countEnrollments(id);
+    if (enrollmentCount > 0) {
+      throw new ApiError(409, "Cannot delete course with active enrollments", "CONFLICT");
+    }
   }
 
   await coursesRepo.remove(id);

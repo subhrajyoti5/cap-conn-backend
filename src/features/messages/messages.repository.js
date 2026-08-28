@@ -266,10 +266,10 @@ const getDirectoryContacts = async (user) => {
     });
   }
 
-  // Ensure Trainee & Trainer users see APPROVED Admins in directory
+  // Ensure Trainee & Trainer users see all active Admins in directory
   if (user.role === "TRAINEE" || user.role === "TRAINER") {
     const admins = await prisma.user.findMany({
-      where: { role: "ADMIN", id: { not: user.id }, status: "APPROVED" },
+      where: { role: "ADMIN", id: { not: user.id }, status: { not: "SUSPENDED" } },
       select: { id: true, name: true, email: true, role: true },
     });
 

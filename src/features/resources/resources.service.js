@@ -13,12 +13,30 @@ const generateStorageKey = (courseId, fileName) => {
   return `courses/${courseId}/${randomUUID()}-${fileName}`;
 };
 
+const isCourseStaff = async (course, user) => {
+  if (user.role === "ADMIN") return true;
+  if (user.role !== "TRAINER") return false;
+  if (course.trainerId === user.id) return true;
+  if (course.trainers && course.trainers.some((ct) => ct.trainerId === user.id || ct.trainer?.id === user.id)) {
+    return true;
+  }
+  return false;
+};
+
+const ensureNotSuspended = (course, user) => {
+  if (!user || user.role === "ADMIN") return;
+  if (course && course.status === "SUSPENDED") {
+    throw new ApiError(403, "This course is currently suspended by the platform administrator. Actions are locked.", "COURSE_SUSPENDED");
+  }
+};
+
 const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) => {
   const course = await coursesRepo.findById(courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
-    throw new ApiError(403, "Not course owner", "NOT_OWNER");
+  if (!(await isCourseStaff(course, user))) {
+    throw new ApiError(403, "Not course owner or co-trainer", "NOT_OWNER");
   }
+  ensureNotSuspended(course, user);
 
   const type = mimeType.startsWith("video/") ? "LECTURE" : "DOCUMENT";
   const maxSize = MAX_SIZE_BYTES[type] || (500 * 1024 * 1024);
@@ -43,9 +61,11 @@ const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) =
 const createResource = async (data, user) => {
   const course = await coursesRepo.findById(data.courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
-    throw new ApiError(403, "Not course owner", "NOT_OWNER");
+  if (!(await isCourseStaff(course, user))) {
+    throw new ApiError(403, "Not course owner or co-trainer", "NOT_OWNER");
   }
+  ensureNotSuspended(course, user);
+
   return resourcesRepo.create(data);
 };
 

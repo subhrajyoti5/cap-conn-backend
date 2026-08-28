@@ -55,6 +55,48 @@ const notifyEnrolledTrainees = async (assessment, tx) => {
   }
 };
 
+const isCourseStaff = async (courseOrId, user) => {
+  if (!user) return false;
+  if (user.role === "ADMIN") return true;
+  if (user.role !== "TRAINER") return false;
+
+  let course = null;
+  if (typeof courseOrId === "string") {
+    course = await coursesRepo.findById(courseOrId);
+  } else {
+    course = courseOrId;
+  }
+  if (!course) return false;
+
+  if (course.trainerId === user.id) return true;
+  if (course.trainers && course.trainers.some((ct) => ct.trainerId === user.id || ct.trainer?.id === user.id)) {
+    return true;
+  }
+
+  const courseId = course.id;
+  const ct = await prisma.courseTrainer.findFirst({
+    where: { courseId, trainerId: user.id },
+  });
+  return !!ct;
+};
+
+const ensureCourseNotSuspended = async (courseOrId, user) => {
+  if (!user || user.role === "ADMIN") return;
+  let course = null;
+  if (typeof courseOrId === "string") {
+    course = await coursesRepo.findById(courseOrId);
+  } else {
+    course = courseOrId;
+  }
+  if (course && course.status === "SUSPENDED") {
+    throw new ApiError(
+      403,
+      "This course is currently suspended by the platform administrator. Actions are locked.",
+      "COURSE_SUSPENDED"
+    );
+  }
+};
+
 const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) => {
   const course = await coursesRepo.findById(courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
@@ -64,9 +106,11 @@ const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) =
     if (!enrollment || enrollment.status !== "ACTIVE") {
       throw new ApiError(403, "Not actively enrolled in course", "INSUFFICIENT_ROLE");
     }
-  } else if (user.role !== "ADMIN" && course.trainerId !== user.id) {
-    throw new ApiError(403, "Not course owner", "NOT_OWNER");
+  } else if (!(await isCourseStaff(course, user))) {
+    throw new ApiError(403, "Not course owner or co-trainer", "NOT_OWNER");
   }
+
+  await ensureCourseNotSuspended(course, user);
 
   const maxSize = 50 * 1024 * 1024; // 50MB
   if (sizeBytes && sizeBytes > maxSize) {
@@ -90,9 +134,10 @@ const getUploadUrl = async ({ courseId, fileName, mimeType, sizeBytes }, user) =
 const createAssessment = async (data, user) => {
   const course = await coursesRepo.findById(data.courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
-    throw new ApiError(403, "Not course owner", "NOT_OWNER");
+  if (!(await isCourseStaff(course, user))) {
+    throw new ApiError(403, "Not course owner or co-trainer", "NOT_OWNER");
   }
+  await ensureCourseNotSuspended(course, user);
 
   if (data.type === "MCQ" || (!data.type && data.questions?.length)) {
     if (!data.questions || !data.questions.length) {
@@ -101,8 +146,7 @@ const createAssessment = async (data, user) => {
     validateQuestions(data.questions);
   }
 
-  const trainerId = course.trainerId;
-  const created = await assessmentsRepo.create({ ...data, trainerId, status: data.status || "DRAFT" });
+  const created = await assessmentsRepo.create({ ...data, trainerId: user.id, status: data.status || "DRAFT" });
 
   if (created.status === "PUBLISHED") {
     await notifyEnrolledTrainees(created);
@@ -113,9 +157,10 @@ const createAssessment = async (data, user) => {
 const generateAiQuestions = async (courseId, body, user) => {
   const course = await coursesRepo.findById(courseId);
   if (!course) throw new ApiError(404, "Course not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && course.trainerId !== user.id) {
-    throw new ApiError(403, "Not course owner", "NOT_OWNER");
+  if (!(await isCourseStaff(course, user))) {
+    throw new ApiError(403, "Not course owner or co-trainer", "NOT_OWNER");
   }
+  await ensureCourseNotSuspended(course, user);
 
   const uniqueIds = [...new Set(body.resourceIds || [])];
   const resources = [];
@@ -168,9 +213,11 @@ const getAssessment = async (id, user) => {
 const updateAssessment = async (id, data, user) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
-    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
+  if (!(await isCourseStaff(assessment.courseId, user))) {
+    throw new ApiError(403, "Not assessment owner or co-trainer", "NOT_OWNER");
   }
+  await ensureCourseNotSuspended(assessment.courseId, user);
+
   if (data.questions) {
     validateQuestions(data.questions);
   }
@@ -186,9 +233,10 @@ const updateAssessment = async (id, data, user) => {
 const deleteAssessment = async (id, user) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
-    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
+  if (!(await isCourseStaff(assessment.courseId, user))) {
+    throw new ApiError(403, "Not assessment owner or co-trainer", "NOT_OWNER");
   }
+  await ensureCourseNotSuspended(assessment.courseId, user);
 
   await assessmentsRepo.remove(id);
   await createAuditLog(
@@ -204,9 +252,10 @@ const deleteAssessment = async (id, user) => {
 const publishAssessment = async (id, user) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
-  if (user.role !== "ADMIN" && assessment.trainerId !== user.id) {
-    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
+  if (!(await isCourseStaff(assessment.courseId, user))) {
+    throw new ApiError(403, "Not assessment owner or co-trainer", "NOT_OWNER");
   }
+  await ensureCourseNotSuspended(assessment.courseId, user);
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.assessment.update({
@@ -240,7 +289,7 @@ const listCourseAssessments = async (courseId, user) => {
     }
   }
 
-  const isStaff = user.role === "ADMIN" || course.trainerId === user.id;
+  const isStaff = await isCourseStaff(course, user);
   const assessments = await assessmentsRepo.findByCourse(courseId, isStaff);
   if (user.role === "TRAINEE") {
     const published = assessments.filter((a) => a.status === "PUBLISHED");
@@ -390,8 +439,8 @@ const getResult = async (id, user) => {
     return { assessment, submission };
   }
 
-  if (user.role === "TRAINER" && assessment.trainerId !== user.id) {
-    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
+  if (user.role === "TRAINER" && !(await isCourseStaff(assessment.courseId, user))) {
+    throw new ApiError(403, "Not assessment owner or co-trainer", "NOT_OWNER");
   }
 
   const submissions = await assessmentsRepo.findSubmissionsByAssessment(id, {
@@ -404,10 +453,33 @@ const getResult = async (id, user) => {
 const listSubmissions = async (id, user, query) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
-  if (user.role === "TRAINER" && assessment.trainerId !== user.id) {
-    throw new ApiError(403, "Not assessment owner", "NOT_OWNER");
+  if (user.role === "TRAINER" && !(await isCourseStaff(assessment.courseId, user))) {
+    throw new ApiError(403, "Not assessment owner or co-trainer", "NOT_OWNER");
   }
   return assessmentsRepo.findSubmissionsByAssessment(id, query);
+};
+
+const gradeManualSubmission = async (assessmentId, submissionId, data, user) => {
+  const assessment = await assessmentsRepo.findById(assessmentId, true);
+  if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
+  if (user.role === "TRAINER" && !(await isCourseStaff(assessment.courseId, user))) {
+    throw new ApiError(403, "Not assessment owner or co-trainer", "NOT_OWNER");
+  }
+
+  const submission = await assessmentsRepo.gradeSubmission(
+    submissionId,
+    data.score,
+    prisma
+  );
+
+  await notificationsRepo.createNotification({
+    userId: submission.traineeId,
+    type: "ASSESSMENT",
+    title: "Assessment Graded",
+    body: `Your submission for "${assessment.title}" has been graded: ${data.score}/${assessment.totalMarks}. ${data.feedback ? `Feedback: ${data.feedback}` : ""}`,
+  });
+
+  return submission;
 };
 
 module.exports = {
@@ -423,4 +495,5 @@ module.exports = {
   submitAssessment,
   getResult,
   listSubmissions,
+  gradeManualSubmission,
 };
