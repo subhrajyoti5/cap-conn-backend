@@ -9,22 +9,48 @@ async function main() {
   const defaultPassword = process.env.DEFAULT_SEED_PASSWORD || "admin1234";
   const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
+  const firstNames = ["Aarav", "Aanya", "Advait", "Aisha", "Akhil", "Ananya", "Arjun", "Avni", "Ayush", "Bhavya", "Chaitanya", "Deepak", "Dhruv", "Diya", "Eshan", "Gaurav", "Harsh", "Isha", "Ishaan", "Jatin", "Kavya", "Krish", "Kritika", "Lakshya", "Manish", "Meera", "Mohit", "Neha", "Nikhil", "Nisha", "Om", "Pooja", "Pranav", "Prisha", "Rahul", "Riya", "Rohan", "Roshni", "Sahil", "Sanya", "Sarthak", "Shreya", "Siddharth", "Sneha", "Tanya", "Tarun", "Utkarsh", "Vaishnavi", "Varun", "Vidhi", "Vivaan", "Yash", "Zoya", "Aditi", "Akash", "Amrita", "Anand", "Anushka", "Aryan", "Bhumika", "Chetan", "Darshan", "Divya", "Gautam", "Geeta", "Hitesh", "Ira", "Jai", "Kajal", "Karan", "Kirti", "Kunal", "Lata", "Madhav", "Mahima", "Nakul", "Namrata", "Naveen", "Nidhi", "Nitin", "Pallavi", "Pankaj", "Payal", "Prakash", "Preeti", "Raghav", "Rajat", "Ritu", "Sameer", "Sanjay", "Sanjana", "Saurabh", "Shivani", "Shruti", "Suman", "Suraj", "Swati", "Tejas", "Tushar", "Urvashi", "Vaibhav", "Vandana", "Vikas", "Vinay", "Yamini", "Yogesh"];
+  const lastNames = ["Sharma", "Patel", "Singh", "Kumar", "Gupta", "Deshmukh", "Joshi", "Reddy", "Iyer", "Nair", "Mehta", "Bhatia", "Rao", "Saxena", "Kulkarni", "Malhotra", "Verma", "Chauhan", "Tiwari", "Yadav", "Rajput", "Pandey", "Mishra", "Chatterjee", "Bose", "Das", "Sengupta", "Banerjee", "Kapoor", "Ahuja", "Chopra", "Khanna", "Mehra", "Garg", "Agarwal", "Bansal", "Jain", "Shah", "Desai", "Parekh", "Patil", "Kadam", "Shinde", "Jadhav", "Pawar", "Menon", "Pillai", "Nambiar", "Krishnan", "Venkatesh"];
+
   // 1. Seed Core Accounts
   console.log("Seeding Core Accounts (Admins, Trainers, Trainees)...");
 
   // Admin Account
   const admin = await prisma.user.upsert({
-    where: { email: "admin@capconn.in" },
+    where: { email: "admin@admin.in" },
     update: { name: "Central Admin", passwordHash, role: "ADMIN", status: "APPROVED" },
-    create: { email: "admin@capconn.in", name: "Central Admin", passwordHash, role: "ADMIN", status: "APPROVED" },
+    create: { email: "admin@admin.in", name: "Central Admin", passwordHash, role: "ADMIN", status: "APPROVED" },
   });
 
-  // Trainers (3 Trainers)
-  const trainersData = [
-    { email: "trainer@capconn.in", name: "Dr. Rajesh Sharma", bio: "Principal Cloud Architect and Lead Technical Instructor with 12+ years experience." },
-    { email: "trainer2@capconn.in", name: "Prof. Ananya Sen", bio: "AI & Machine Learning Research Chair, specialization in LLMs & Neural Networks." },
-    { email: "trainer3@capconn.in", name: "Vikramaditya Roy", bio: "DevSecOps Lead & Zero-Trust Infrastructure Consultant." }
+  // Trainers (20 Trainers)
+  const trainersData = [];
+  const trainerBios = [
+    "Principal Cloud Architect and Lead Technical Instructor with 12+ years experience.",
+    "AI & Machine Learning Research Chair, specialization in LLMs & Neural Networks.",
+    "DevSecOps Lead & Zero-Trust Infrastructure Consultant.",
+    "Senior Full-Stack Developer with deep expertise in React and Node.js ecosystems.",
+    "Data Engineering Specialist focusing on scalable pipelines and distributed databases."
   ];
+  const trainerDegrees = [
+    ["Ph.D. in Computer Science", "IISc Bangalore", 2016],
+    ["M.Tech in Software Engineering", "IIT Bombay", 2012],
+    ["M.S. in Data Science", "Stanford University", 2018],
+    ["B.Tech in Information Technology", "NIT Trichy", 2010],
+    ["MBA in IT Management", "IIM Ahmedabad", 2015]
+  ];
+  
+  for (let i = 0; i < 20; i++) {
+    const fn = firstNames[(i + 50) % firstNames.length];
+    const ln = lastNames[(i + 20) % lastNames.length];
+    const emailPrefix = i === 0 ? "trainer" : `trainer${i}`;
+    
+    trainersData.push({
+      email: `${emailPrefix}@trainer.in`,
+      name: `Prof. ${fn} ${ln}`,
+      bio: trainerBios[i % trainerBios.length],
+      degree: trainerDegrees[i % trainerDegrees.length]
+    });
+  }
 
   const trainers = [];
   for (const t of trainersData) {
@@ -44,30 +70,46 @@ async function main() {
     await prisma.qualification.deleteMany({ where: { trainerProfileId: profile.id } });
     await prisma.qualification.createMany({
       data: [
-        { trainerProfileId: profile.id, degree: "Ph.D. in Computer Science", institution: "IISc Bangalore", year: 2016 },
-        { trainerProfileId: profile.id, degree: "M.Tech in Software Engineering", institution: "IIT Bombay", year: 2012 }
+        { trainerProfileId: profile.id, degree: t.degree[0], institution: t.degree[1], year: t.degree[2] }
       ]
     });
   }
 
-  // Trainees (15 Trainees)
-  const traineesData = [
-    { email: "trainee@capconn.in", name: "Aarav Patel" },
-    { email: "trainee2@capconn.in", name: "Priya Sharma" },
-    { email: "trainee3@capconn.in", name: "Rohan Gupta" },
-    { email: "trainee4@capconn.in", name: "Sneha Reddy" },
-    { email: "trainee5@capconn.in", name: "Kabir Verma" },
-    { email: "trainee6@capconn.in", name: "Ananya Iyer" },
-    { email: "trainee7@capconn.in", name: "Aditya Joshi" },
-    { email: "trainee8@capconn.in", name: "Meera Nair" },
-    { email: "trainee9@capconn.in", name: "Devansh Mehta" },
-    { email: "trainee10@capconn.in", name: "Ishita Bhatia" },
-    { email: "trainee11@capconn.in", name: "Siddharth Rao" },
-    { email: "trainee12@capconn.in", name: "Kavya Deshmukh" },
-    { email: "trainee13@capconn.in", name: "Arjun Saxena" },
-    { email: "trainee14@capconn.in", name: "Tanvi Kulkarni" },
-    { email: "trainee15@capconn.in", name: "Varun Malhotra" },
+  // Trainees (106 Trainees)
+  const traineesData = [];
+  const professionalBios = [
+    "Dedicated software engineer with a focus on cloud-native applications and scalable microservices.",
+    "Data-driven professional passionate about machine learning, AI architectures, and predictive modeling.",
+    "Full-stack developer specializing in modern JavaScript frameworks, React, and RESTful API design.",
+    "Security-focused engineer with expertise in DevSecOps, zero-trust architectures, and compliance.",
+    "Technical enthusiast building high-performance web applications with a strong emphasis on user experience.",
+    "Cloud infrastructure specialist with a background in Kubernetes orchestration and automated CI/CD pipelines."
   ];
+  const allSkills = [
+    ["JavaScript / TypeScript", "React & Next.js", "Node.js & Express", "PostgreSQL"],
+    ["Python", "Machine Learning", "TensorFlow", "Data Analytics"],
+    ["AWS Cloud", "Docker", "Kubernetes", "CI/CD Pipelines"],
+    ["Cybersecurity", "Network Architecture", "Penetration Testing", "DevSecOps"],
+    ["Go (Golang)", "Microservices", "gRPC", "Redis Caching"],
+    ["Java", "Spring Boot", "Enterprise Architecture", "Kafka"]
+  ];
+
+  for (let i = 0; i <= 105; i++) {
+    const fn = firstNames[i % firstNames.length];
+    const ln = lastNames[i % lastNames.length];
+    const bio = professionalBios[i % professionalBios.length];
+    const skillsList = allSkills[i % allSkills.length];
+    
+    const emailPrefix = i === 0 ? "trainee" : `trainee${i}`;
+    
+    traineesData.push({
+      email: `${emailPrefix}@trainee.in`,
+      name: `${fn} ${ln}`,
+      bio: bio,
+      phone: `+91 98${String(12345000 + i)}`,
+      skills: skillsList
+    });
+  }
 
   const trainees = [];
   for (const tr of traineesData) {
@@ -80,28 +122,20 @@ async function main() {
 
     const profile = await prisma.traineeProfile.upsert({
       where: { userId: u.id },
-      update: { fullName: tr.name, bio: "Enthusiastic learner specializing in modern software development and cloud systems.", phone: "+91 91234 56789" },
-      create: { userId: u.id, fullName: tr.name, bio: "Enthusiastic learner specializing in modern software development and cloud systems.", phone: "+91 91234 56789" },
+      update: { fullName: tr.name, bio: tr.bio, phone: tr.phone },
+      create: { userId: u.id, fullName: tr.name, bio: tr.bio, phone: tr.phone },
     });
 
     await prisma.skill.deleteMany({ where: { traineeProfileId: profile.id } });
     await prisma.skill.createMany({
-      data: [
-        { traineeProfileId: profile.id, name: "JavaScript / TypeScript" },
-        { traineeProfileId: profile.id, name: "React & Next.js" },
-        { traineeProfileId: profile.id, name: "Node.js & Express" },
-        { traineeProfileId: profile.id, name: "PostgreSQL & Prisma" }
-      ]
+      data: tr.skills.map(skillName => ({
+        traineeProfileId: profile.id,
+        name: skillName
+      }))
     });
   }
 
-  // Also keep backward compatible trainee@trainee.in
-  const legacyTrainee = await prisma.user.upsert({
-    where: { email: "trainee@trainee.in" },
-    update: { name: "Aarav Patel (Legacy)", passwordHash, role: "TRAINEE", status: "APPROVED" },
-    create: { email: "trainee@trainee.in", name: "Aarav Patel (Legacy)", passwordHash, role: "TRAINEE", status: "APPROVED" },
-  });
-  trainees.push(legacyTrainee);
+  // Removed backward compatible block since it's now covered
 
   // 2. Subjects & Competencies
   console.log("Seeding Subjects & Competencies...");
@@ -273,8 +307,10 @@ async function main() {
     // Seed student submissions
     for (let i = 0; i < 5; i++) {
       const student = trainees[i];
-      await prisma.submission.create({
-        data: {
+      await prisma.submission.upsert({
+        where: { assessmentId_traineeId: { assessmentId: quiz.id, traineeId: student.id } },
+        update: { score: 20 + (i * 2) },
+        create: {
           assessmentId: quiz.id,
           traineeId: student.id,
           status: "GRADED",
@@ -348,9 +384,9 @@ async function main() {
   console.log("SEEDING COMPLETED SUCCESSFULLY!");
   console.log(`Default Password for all accounts: ${defaultPassword}`);
   console.log("Accounts created:");
-  console.log(" - Admin:   admin@capconn.in");
-  console.log(" - Trainers: trainer@capconn.in, trainer2@capconn.in, trainer3@capconn.in");
-  console.log(" - Trainees: trainee@capconn.in (to trainee15@capconn.in), trainee@trainee.in");
+  console.log(" - Admin:   admin@admin.in");
+  console.log(" - Trainers: trainer@trainer.in (to trainer19@trainer.in)");
+  console.log(" - Trainees: trainee@trainee.in (to trainee105@trainee.in)");
   console.log("=========================================");
 }
 
