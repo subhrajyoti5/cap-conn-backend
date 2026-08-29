@@ -343,7 +343,7 @@ const submitAssessment = async (id, traineeId, answers) => {
   }
 
   const existing = await assessmentsRepo.findSubmission(id, traineeId);
-  if (existing && existing.status === "SUBMITTED") {
+  if (existing && (existing.status === "SUBMITTED" || existing.status === "GRADED")) {
     throw new ApiError(409, "Already submitted", "CONFLICT");
   }
 
@@ -393,13 +393,36 @@ const submitAssessment = async (id, traineeId, answers) => {
   });
 };
 
+const submitDocumentAssessment = async (id, traineeId, data) => {
+  const assessment = await assessmentsRepo.findById(id, true);
+  if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
+
+  if (new Date() > new Date(assessment.deadline)) {
+    throw new ApiError(403, "Assessment deadline passed", "ASSESSMENT_CLOSED");
+  }
+
+  const existing = await assessmentsRepo.findSubmission(id, traineeId);
+  if (existing && (existing.status === "SUBMITTED" || existing.status === "GRADED")) {
+    throw new ApiError(409, "Already submitted", "CONFLICT");
+  }
+
+  const submission = existing || (await assessmentsRepo.createSubmission(id, traineeId));
+  return assessmentsRepo.updateSubmission(submission.id, {
+    fileUrl: data.fileUrl,
+    fileName: data.fileName,
+    notes: data.notes || null,
+    status: "SUBMITTED",
+    submittedAt: new Date(),
+  });
+};
+
 const getResult = async (id, user) => {
   const assessment = await assessmentsRepo.findById(id, true);
   if (!assessment) throw new ApiError(404, "Assessment not found", "NOT_FOUND");
 
   if (user.role === "TRAINEE") {
     const submission = await assessmentsRepo.findSubmission(id, user.id);
-    if (!submission || submission.status !== "GRADED") {
+    if (!submission || (submission.status !== "GRADED" && submission.status !== "SUBMITTED")) {
       throw new ApiError(404, "Result not found", "NOT_FOUND");
     }
     if (assessment.evaluationMode === "MANUAL_RELEASE" && !assessment.resultsReleased) {
@@ -465,7 +488,8 @@ const gradeManualSubmission = async (assessmentId, submissionId, data, user) => 
   const submission = await assessmentsRepo.gradeSubmission(
     submissionId,
     data.score,
-    prisma
+    prisma,
+    data.feedback || null
   );
 
   await notificationsRepo.createNotification({
@@ -489,6 +513,7 @@ module.exports = {
   listCourseAssessments,
   startAssessment,
   submitAssessment,
+  submitDocumentAssessment,
   getResult,
   listSubmissions,
   gradeManualSubmission,

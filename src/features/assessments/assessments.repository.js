@@ -288,12 +288,14 @@ const upsertAnswer = async (submissionId, questionId, selectedOptionId, dbClient
   });
 };
 
-const gradeSubmission = async (submissionId, score, dbClient = prisma) => {
+const gradeSubmission = async (submissionId, score, dbClient = prisma, feedback = null) => {
   return dbClient.submission.update({
     where: { id: submissionId },
     data: {
       score,
-      status: "SUBMITTED",
+      status: "GRADED",
+      feedback: feedback !== undefined ? feedback : undefined,
+      gradedAt: new Date(),
       submittedAt: new Date(),
     },
   });
