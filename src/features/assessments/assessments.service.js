@@ -331,11 +331,7 @@ const startAssessment = async (id, traineeId) => {
   const existing = await assessmentsRepo.findSubmission(id, traineeId);
   if (existing) return existing;
 
-  return assessmentsRepo.createSubmission({
-    assessmentId: id,
-    traineeId,
-    status: "IN_PROGRESS",
-  });
+  return assessmentsRepo.createSubmission(id, traineeId);
 };
 
 const submitAssessment = async (id, traineeId, answers) => {
