@@ -212,7 +212,3 @@ Typical deployment flow:
 
 ---
 
-## License
-
-This project is maintained as part of the CAPACITY CONNECT initiative.  
-Add your organization’s preferred license in this repository if required.
