@@ -1,16 +1,16 @@
 # CAPACITY CONNECT Backend
 
-<p align="center">
-  <strong>Enterprise-grade LMS backend for organizational capacity building.</strong><br/>
+<p>
+  <strong>Enterprise-grade LMS backend for organizational capacity building.</strong><br>
   Built for secure, role-driven learning, assessments, analytics, and communication.
 </p>
 
-<p align="center">
-  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white">
-  <img alt="Express" src="https://img.shields.io/badge/Express-4.x-000000?logo=express&logoColor=white">
-  <img alt="Prisma" src="https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=white">
-  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Database-336791?logo=postgresql&logoColor=white">
-  <img alt="License" src="https://img.shields.io/badge/Status-Production%20Ready-success">
+<p>
+  <img src="https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&amp;logoColor=white">
+  <img src="https://img.shields.io/badge/Express-4.x-000000?logo=express&amp;logoColor=white">
+  <img src="https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&amp;logoColor=white">
+  <img src="https://img.shields.io/badge/PostgreSQL-Database-336791?logo=postgresql&amp;logoColor=white">
+  <img src="https://img.shields.io/badge/Status-Production%20Ready-success">
 </p>
 
 ---
@@ -211,4 +211,3 @@ Typical deployment flow:
 4. Include API and schema updates in the same change when needed
 
 ---
-
